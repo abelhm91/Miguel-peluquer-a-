@@ -35,6 +35,11 @@ async function readJson(req) {
   }
 }
 
+export const MAX_PEOPLE = 4;
+/** Número de personas para una cita seguida (1–4). */
+const peopleOf = (v) => Math.min(MAX_PEOPLE, Math.max(1, Math.floor(Number(v)) || 1));
+const serviceLabel = (name, people) => (people > 1 ? `${name} · ${people} personas` : name);
+
 const str = (v, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const cleanPhone = (v) => str(v, 30).replace(/[^\d+]/g, '');
 
@@ -255,12 +260,16 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     const name = str(body.name, 80);
     const phone = cleanPhone(body.phone);
     const email = str(body.email, 120);
-    const notes = str(body.notes, 600);
+    const people = source === 'web' ? peopleOf(body.people) : 1;
+    // Nombres de las demás personas (opcionales): se guardan en las notas para Miguel.
+    const others = (Array.isArray(body.others) ? body.others : []).slice(0, people - 1).map((x) => str(x, 60)).filter(Boolean);
+    const baseNotes = str(body.notes, 600);
+    const notes = people > 1 ? [`${people} personas seguidas${others.length ? `: ${[name, ...others].join(', ')}` : ''}.`, baseNotes].filter(Boolean).join('\n') : baseNotes;
     if (name.length < 2) throw bad('Escribe tu nombre.');
     if (source === 'web' && phone.replace(/\D/g, '').length < 9) throw bad('Escribe un teléfono válido para que Miguel pueda avisarte.');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw bad('Revisa el correo electrónico.');
     const custom = Number(body.duration);
-    const duration = source === 'admin' && Number.isInteger(custom) && custom >= 10 && custom <= 600 ? custom : service.duration;
+    const duration = source === 'admin' && Number.isInteger(custom) && custom >= 10 && custom <= 600 ? custom : service.duration * people;
     const end = start + duration;
 
     if (source === 'web') {
@@ -274,7 +283,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     for (let attempt = 0; attempt < 4; attempt++) {
       const code = newCode();
       const token = randomToken();
-      const values = [code, token, service.id, service.name, date, start, end, name, phone, email, notes, source];
+      const values = [code, token, service.id, serviceLabel(service.name, people), date, start, end, name, phone, email, notes, source];
       let r;
       try {
         r = force ? await db.run(INSERT_ANY, ...values) : await db.run(INSERT_IF_FREE, ...values, date, end, start, date, end, start);
@@ -315,7 +324,8 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       const n = now();
       const from = isValidDate(url.searchParams.get('from')) ? url.searchParams.get('from') : n.date;
       const count = Math.min(62, Math.max(1, Number(url.searchParams.get('n')) || 14));
-      return json(200, { days: await daySummary(db, settings, from, count, service.duration, n) });
+      const people = peopleOf(url.searchParams.get('people'));
+      return json(200, { days: await daySummary(db, settings, from, count, service.duration * people, n) });
     }
 
     if (m === 'GET' && path === '/api/slots') {
@@ -324,7 +334,8 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       const date = url.searchParams.get('date');
       if (!service || !service.active) throw bad('Servicio no válido.');
       if (!isValidDate(date)) throw bad('Fecha no válida.');
-      const slots = (await freeSlots(db, settings, date, service.duration, now())).map(toHHMM);
+      const people = peopleOf(url.searchParams.get('people'));
+      const slots = (await freeSlots(db, settings, date, service.duration * people, now())).map(toHHMM);
       return json(200, { date, slots });
     }
 

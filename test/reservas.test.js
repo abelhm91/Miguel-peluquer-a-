@@ -140,6 +140,23 @@ test('ventana de Fallas y día ya cerrado', async () => {
   assert.deepEqual(today, { date: '2030-03-04', open: false, free: 0 });
 });
 
+test('reserva seguida para varias personas', async () => {
+  const { call } = await setup();
+  const svc = (await call('/api/info')).data.services.find((x) => x.name === 'Trenzas'); // 60 min
+  // De 9:00 a 14:00 caben 2 personas (120 min) empezando como muy tarde a las 12:00.
+  const two = (await call(`/api/slots?service=${svc.id}&date=${MONDAY}&people=2`)).data.slots;
+  assert.ok(two.includes('12:00') && !two.includes('12:30') && !two.includes('13:00'));
+  const r = await call('/api/bookings', {
+    method: 'POST',
+    body: { serviceId: svc.id, date: MONDAY, time: '09:00', name: 'Amparo', phone: '600112233', people: 2, others: ['Lucía'] },
+  });
+  assert.equal(r.status, 201);
+  assert.equal(r.data.service, 'Trenzas · 2 personas');
+  assert.deepEqual([r.data.start, r.data.end], ['09:00', '11:00']);
+  const one = (await call(`/api/slots?service=${svc.id}&date=${MONDAY}`)).data.slots;
+  assert.ok(!one.includes('10:00') && one.includes('11:00'), 'ocupa las dos horas seguidas');
+});
+
 test('hora de Madrid', () => {
   assert.deepEqual(nowInMadrid(new Date('2030-07-01T22:30:00Z')), { date: '2030-07-02', minutes: 30 });
 });

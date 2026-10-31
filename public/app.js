@@ -1,5 +1,5 @@
 import {
-  $, $$, esc, api, addDays, daysBetween, weekday, longDate, fullDate, shortDate, monthLabel, monthShort, dow, dayNum,
+  $, $$, esc, api, addDays, daysBetween, weekday, longDate, fullDate, shortDate, monthLabel, dow, dayNum,
   DAY_NAMES, toMin, prettyTime, prettyMin, duration, phoneHref, whatsappHref, prettyPhone, icsFor, store,
 } from './shared.js';
 
@@ -24,14 +24,19 @@ const state = {
   submitting: false,
   result: null,
   allTimes: false,
+  people: 1,
+  others: [],
 };
+
+const MAX_PEOPLE = 4;
+const totalMin = () => (service()?.duration ?? 0) * state.people;
 
 /* Reserva en curso: sobrevive a una recarga o a cambiar de app (solo en esta pestaña). */
 const FLOW_KEY = 'pentinats:flujo';
 function saveFlow() {
   try {
     if (!dlg.open || state.step === 'done') sessionStorage.removeItem(FLOW_KEY);
-    else sessionStorage.setItem(FLOW_KEY, JSON.stringify({ serviceId: state.serviceId, step: state.step, winStart: state.winStart, date: state.date, time: state.time }));
+    else sessionStorage.setItem(FLOW_KEY, JSON.stringify({ serviceId: state.serviceId, step: state.step, winStart: state.winStart, date: state.date, time: state.time, people: state.people }));
   } catch {
     /* almacenamiento no disponible */
   }
@@ -67,7 +72,7 @@ async function boot() {
   if (location.hash === '#reservar') {
     const f = readFlow();
     if (f && state.services.some((x) => x.id === f.serviceId) && (!f.winStart || f.winStart >= state.info.today)) {
-      Object.assign(state, { serviceId: f.serviceId, winStart: f.winStart || state.info.today, date: f.date, time: f.time });
+      Object.assign(state, { serviceId: f.serviceId, winStart: f.winStart || state.info.today, date: f.date, time: f.time, people: Math.min(MAX_PEOPLE, Math.max(1, f.people || 1)) });
       state.step = f.step === 'details' && !(f.date && f.time) ? 'time' : f.step;
     }
     openBooking();
@@ -406,7 +411,6 @@ function timeView() {
   const canPrev = state.winStart > today;
   const canNext = daysBetween(state.winStart, lastDay) >= WINDOW;
   const winEnd = addDays(state.winStart, WINDOW - 1);
-  const shown = winEnd < lastDay ? winEnd : lastDay;
   const fallasStart = addDays(s.fallasEnd, -13);
   const fallasFrom = addDays(s.fallasEnd, -4); // 15 de marzo: plantà
   const showFallas = s.fallasEnd <= lastDay && (state.winStart > s.fallasEnd || winEnd < fallasStart);
@@ -450,7 +454,8 @@ function timeView() {
         ['Mediodía', state.slots.filter((t) => toMin(t) >= 12 * 60 && toMin(t) < 16 * 60)],
         ['Tarde', state.slots.filter((t) => toMin(t) >= 16 * 60)],
       ];
-      const all = state.allTimes || bands.every(([, l]) => l.length <= LIMIT) || (state.time && bands.some(([, l]) => l.indexOf(state.time) >= LIMIT));
+      const extra = bands.reduce((n, [, l]) => n + Math.max(0, l.length - LIMIT), 0);
+      const all = state.allTimes || extra <= 3 || (state.time && bands.some(([, l]) => l.indexOf(state.time) >= LIMIT));
       let hidden = 0;
       const grp = ([title, list]) => {
         if (!list.length) return '';
@@ -467,11 +472,26 @@ function timeView() {
     }
   }
 
+  const sv = service();
+  const people = `
+    <div class="people">
+      <div>
+        <span class="people__label" id="people-label">¿Para cuántas personas?</span>
+        <span class="people__hint">${state.people > 1 ? `Citas seguidas · ${duration(totalMin())} en total` : 'Si venís varias (por ejemplo, hermanas), se reservan seguidas'}</span>
+      </div>
+      <div class="stepper" role="group" aria-labelledby="people-label">
+        <button type="button" class="icon-btn" data-people="-1" aria-label="Una persona menos" ${state.people <= 1 ? 'disabled' : ''}>${ICON('minus')}</button>
+        <output aria-live="polite">${state.people}</output>
+        <button type="button" class="icon-btn" data-people="1" aria-label="Una persona más" ${state.people >= MAX_PEOPLE ? 'disabled' : ''}>${ICON('plus')}</button>
+      </div>
+    </div>`;
+
   return `
     ${state.error ? `<div class="alert" role="alert">${ICON('info')}<span>${esc(state.error)}</span></div>` : ''}
+    ${sv ? people : ''}
     <div>
       <div class="datebar">
-        <span class="datebar__month" aria-live="polite"><span class="lbl-long">${rangeLabel(state.winStart, shown)}</span><span class="lbl-short" aria-hidden="true">${rangeShort(state.winStart, shown)}</span></span>
+        ${monthPicker(today, lastDay)}
         ${showFallas ? `<button type="button" class="chip chip--fallas" data-fallas>Ir a Fallas · 15–19 mar</button>` : ''}
         <div class="datebar__nav">
           <button type="button" class="icon-btn" data-win="prev" aria-label="Fechas anteriores" ${canPrev ? '' : 'disabled'}>${ICON('back')}</button>
@@ -498,6 +518,11 @@ function detailsView() {
         <label for="f-name">Nombre y apellidos</label>
         <input class="input" id="f-name" name="name" autocomplete="name" required minlength="2" maxlength="80" value="${esc(f.name)}">
       </div>
+      ${Array.from({ length: state.people - 1 }, (_, i) => `
+      <div class="field">
+        <label for="f-other-${i}">Nombre de la persona ${i + 2} <span class="muted">(opcional)</span></label>
+        <input class="input" id="f-other-${i}" data-other="${i}" maxlength="60" value="${esc(state.others[i] || '')}">
+      </div>`).join('')}
       <div class="field">
         <label for="f-phone">Teléfono</label>
         <input class="input" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required value="${esc(f.phone)}" placeholder="600 000 000">
@@ -552,21 +577,24 @@ function doneView() {
     </div>`;
 }
 
-function rangeShort(a, b) {
-  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
-  const [ya, yb] = [a.slice(0, 4), b.slice(0, 4)];
-  if (monthShort(a) === monthShort(b) && ya === yb) return `${cap(monthShort(a))} ${ya}`;
-  return ya === yb ? `${cap(monthShort(a))} – ${monthShort(b)} ${yb}` : `${cap(monthShort(a))} ${ya} – ${monthShort(b)} ${yb}`;
+/** Desplegable de meses reservables: salta directamente a cualquier mes. */
+function monthPicker(today, lastDay) {
+  const months = [];
+  for (let d = `${today.slice(0, 7)}-01`; d <= lastDay; ) {
+    months.push(d.slice(0, 7));
+    const [y, m] = d.split('-').map(Number);
+    d = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+  }
+  const current = state.winStart.slice(0, 7);
+  return `<label class="month-picker">
+      <span class="visually-hidden">Ir al mes</span>
+      <select data-month>${months
+        .map((m) => `<option value="${m}" ${m === current ? 'selected' : ''}>${monthLabel(`${m}-01`).replace(' de ', ' ')}</option>`)
+        .join('')}</select>
+      ${ICON('down')}
+    </label>`;
 }
 
-function rangeLabel(a, b) {
-  const [ma, mb] = [monthLabel(a), monthLabel(b)];
-  if (ma === mb) return ma;
-  const ya = a.slice(0, 4);
-  const yb = b.slice(0, 4);
-  const name = (d) => monthLabel(d).replace(/ de \d{4}$/, '');
-  return ya === yb ? `${name(a)} – ${name(b).toLowerCase()} de ${yb}` : `${name(a)} ${ya} – ${name(b).toLowerCase()} ${yb}`;
-}
 
 /* ----- resumen ----- */
 
@@ -576,7 +604,8 @@ function renderSummary(step) {
   const canNext = (step === 'service' && !!s) || (step === 'time' && !!state.time) || step === 'details';
   const label = step === 'details' ? 'Confirmar cita' : 'Continuar';
   const when = state.date && state.time ? `${fullDate(state.date)}` : '';
-  const end = state.time && s ? prettyMin(toMin(state.time) + s.duration) : '';
+  const end = state.time && s ? prettyMin(toMin(state.time) + totalMin()) : '';
+  const who = state.people > 1 ? ` · ${state.people} personas` : '';
 
   $('#summary').innerHTML = `
     <div class="summary__salon">
@@ -586,7 +615,7 @@ function renderSummary(step) {
     <dl>
       ${
         s
-          ? `<div><dt>${ICON('scissors')}<span class="visually-hidden">Servicio</span></dt><dd><strong>${esc(s.name)}</strong><span>${duration(s.duration)}${s.price ? ` · ${esc(s.price)}` : ''}</span></dd></div>`
+          ? `<div><dt>${ICON('scissors')}<span class="visually-hidden">Servicio</span></dt><dd><strong>${esc(s.name)}${who}</strong><span>${duration(totalMin())}${s.price && state.people === 1 ? ` · ${esc(s.price)}` : ''}</span></dd></div>`
           : `<p class="summary__empty">Aún no has elegido servicio.</p>`
       }
       ${when ? `<div><dt>${ICON('cal')}<span class="visually-hidden">Fecha</span></dt><dd><strong>${when}</strong><span>de ${prettyTime(state.time)} a ${end}</span></dd></div>` : ''}
@@ -597,7 +626,7 @@ function renderSummary(step) {
   const foot = $('#booking-foot');
   foot.classList.toggle('is-hidden', step === 'done' || closed);
   $('#foot-summary').innerHTML = s
-    ? `<strong>${esc(s.name)}</strong><span>${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(s.duration)}</span>`
+    ? `<strong>${esc(s.name)}${who}</strong><span>${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(totalMin())}</span>`
     : `<span>Elige un servicio</span>`;
   const fb = $('#foot-next');
   fb.textContent = label;
@@ -625,6 +654,8 @@ function bindStep(step) {
     $$('[data-service]', content).forEach((b) =>
       b.addEventListener('click', () => {
         state.serviceId = Number(b.dataset.service);
+        state.people = 1;
+        state.others = [];
         resetTime();
         go('time');
       })
@@ -640,6 +671,23 @@ function bindStep(step) {
         $(`[data-time="${state.time}"]`, content)?.focus();
       })
     );
+    $$('[data-people]', content).forEach((b) =>
+      b.addEventListener('click', () => {
+        state.people = Math.min(MAX_PEOPLE, Math.max(1, state.people + Number(b.dataset.people)));
+        state.date = null;
+        state.slots = null;
+        state.time = null;
+        loadDays();
+      })
+    );
+    $('[data-month]', content)?.addEventListener('change', (e) => {
+      const first = `${e.target.value}-01`;
+      state.winStart = first > state.info.today ? first : state.info.today;
+      state.date = null;
+      state.slots = null;
+      state.time = null;
+      loadDays();
+    });
     $('[data-all-times]', content)?.addEventListener('click', () => {
       state.allTimes = true;
       render();
@@ -671,6 +719,7 @@ function bindStep(step) {
     const form = $('#details-form');
     form.addEventListener('input', (e) => {
       if (e.target.name in state.form) state.form[e.target.name] = e.target.value;
+      if (e.target.dataset.other) state.others[Number(e.target.dataset.other)] = e.target.value;
       e.target.removeAttribute('aria-invalid');
     });
     form.addEventListener('submit', (e) => {
@@ -710,7 +759,7 @@ async function loadDays({ keep = false, prefer = null } = {}) {
   state.days = [];
   render();
   try {
-    const { days } = await api(`/api/days?service=${state.serviceId}&from=${state.winStart}&n=${WINDOW}`);
+    const { days } = await api(`/api/days?service=${state.serviceId}&from=${state.winStart}&n=${WINDOW}&people=${state.people}`);
     const last = addDays(state.info.today, settings().maxDaysAhead);
     state.days = days.filter((d) => d.date <= last);
     state.daysLoading = false;
@@ -732,7 +781,7 @@ async function selectDate(date, keepTime = null) {
   state.slotsLoading = true;
   render();
   try {
-    const { slots } = await api(`/api/slots?service=${state.serviceId}&date=${date}`);
+    const { slots } = await api(`/api/slots?service=${state.serviceId}&date=${date}&people=${state.people}`);
     if (state.date !== date) return;
     state.slots = slots;
     if (keepTime && slots.includes(keepTime)) state.time = keepTime;
@@ -780,12 +829,16 @@ async function submit() {
         phone: f.phone,
         email: f.email,
         notes: f.notes,
+        people: state.people,
+        others: state.others.slice(0, state.people - 1),
         website: form.website.value,
       },
     });
     store.set('pentinats:cliente', { name: f.name, phone: f.phone, email: f.email });
     state.result = r;
     state.submitting = false;
+    state.people = 1;
+    state.others = [];
     state.form.notes = '';
     go('done');
   } catch (e) {

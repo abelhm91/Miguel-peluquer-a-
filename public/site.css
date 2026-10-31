@@ -1338,19 +1338,7 @@
   margin-left: auto;
 }
 
-.lbl-short {
-  display: none;
-}
-
 @media (max-width: 560px) {
-  .lbl-long {
-    display: none;
-  }
-
-  .lbl-short {
-    display: inline;
-  }
-
   .datebar .chip--fallas {
     order: 3;
     flex-basis: 100%;
@@ -1784,4 +1772,81 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 8px;
+}
+
+/* ---------- reserva: personas y selector de mes ---------- */
+
+.people {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.people > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.people__label {
+  font-weight: 700;
+}
+
+.people__hint {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.stepper .icon-btn {
+  border: 1px solid var(--line-strong);
+  background: #fff;
+}
+
+.stepper output {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.month-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.month-picker select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 44px;
+  padding: 0 34px 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.month-picker select:hover {
+  border-color: var(--ink);
+}
+
+.month-picker .icon {
+  position: absolute;
+  right: 12px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
 }
