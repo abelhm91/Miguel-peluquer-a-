@@ -13,14 +13,15 @@ Se publica en **Cloudflare Workers + D1** (gratis para este volumen). El mismo c
 
 La web se publica como un **Cloudflare Worker**: las páginas de `public/` se sirven como archivos estáticos y la agenda vive en una base de datos **D1**. Configuración en `wrangler.jsonc`, código del Worker en `worker.js`.
 
-Desde un ordenador con Node 22 instalado, dentro de la carpeta del proyecto:
+La base de datos D1 `pentinats-reservas` ya está creada (región Europa occidental), con las tablas y los servicios iniciales, y su id está en `wrangler.jsonc`. Solo falta desplegar el Worker y poner los dos secretos.
+
+**Opción A — desde el panel de Cloudflare, sin instalar nada:** *Workers & Pages* → *Create* → *Import a repository* → este repositorio y la rama que quieras publicar. Nombre del proyecto: `pentinats-reservas` (debe coincidir con `wrangler.jsonc`); comando de despliegue: `npx wrangler deploy`. Cuando termine, en el Worker → *Settings* → *Variables and Secrets* añade `ADMIN_PASSWORD` y `SESSION_SECRET` como tipo **Secret**. A partir de ahí, cada `git push` a esa rama vuelve a publicar.
+
+**Opción B — desde un ordenador con Node 22**, dentro de la carpeta del proyecto:
 
 ```bash
 npm install
 npx wrangler login                                   # abre el navegador para entrar en tu cuenta de Cloudflare
-npx wrangler d1 create pentinats-reservas            # crea la base de datos y muestra su "database_id"
-#   → copia ese id en wrangler.jsonc, en "database_id"
-npm run cf:migrate                                   # crea las tablas y los servicios iniciales
 npx wrangler secret put ADMIN_PASSWORD               # contraseña del panel de Miguel
 npx wrangler secret put SESSION_SECRET               # cualquier texto largo y aleatorio
 npm run deploy                                       # publica: https://pentinats-reservas.<tu-subdominio>.workers.dev
@@ -28,7 +29,7 @@ npm run deploy                                       # publica: https://pentinat
 
 Para usar un dominio propio (por ejemplo `migueldelacruz.es`): en el panel de Cloudflare → *Workers & Pages* → `pentinats-reservas` → *Settings* → *Domains & Routes* → *Add custom domain*.
 
-Para publicar solo con cada `git push`: *Workers & Pages* → *Create* → *Import a repository* → este repositorio (comando de despliegue `npx wrangler deploy`). La base de datos, las migraciones y los dos secretos se crean una vez, como arriba.
+Si algún día se añade una migración nueva en `migrations/`, se aplica con `npm run cf:migrate`.
 
 Copia de seguridad de la agenda: `npx wrangler d1 export pentinats-reservas --remote --output copia.sql`.
 

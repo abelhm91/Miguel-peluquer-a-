@@ -15,8 +15,7 @@
     {
       "binding": "DB",
       "database_name": "pentinats-reservas",
-      // Sustituir por el id que devuelve: npx wrangler d1 create pentinats-reservas
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "49c1446c-c1ad-45b5-b6c0-eaf9c26d6955",
       "migrations_dir": "migrations"
     }
   ],
