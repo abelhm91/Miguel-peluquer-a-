@@ -2,7 +2,7 @@
    Una espina dorada vertical une los capítulos (Marzo · Abril–septiembre · Todo el año · El salón). */
 
 .year {
-  --rail: 132px;
+  --rail: 150px;
 }
 
 .season {
@@ -546,4 +546,84 @@
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+}
+
+/* ---------- celebraciones por momentos ---------- */
+
+.moments {
+  margin-top: 32px;
+  border-top: 1px solid var(--ink);
+}
+
+.moment {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px clamp(20px, 4vw, 48px);
+  padding: 28px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.moment h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.moment p {
+  color: var(--ink-2);
+  max-width: 48ch;
+}
+
+.moment__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.svc-list--rest {
+  margin-top: 0 !important;
+  border-top: 0 !important;
+}
+
+@media (max-width: 720px) {
+  .moment {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- reserva: personas en una línea cuando es 1 ---------- */
+
+.people--compact {
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+}
+
+.people--compact .link-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.fday__free.is-few {
+  color: var(--gold-bright);
+  font-weight: 700;
+}
+
+/* textos de los días de Fallas algo más grandes para clientela de todas las edades */
+.fday__tag {
+  font-size: 0.8125rem;
+}
+
+.fday__free {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 720px) {
+  .fday__free {
+    font-size: 0.8125rem;
+  }
 }

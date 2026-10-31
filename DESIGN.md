@@ -2,12 +2,12 @@
 
 **La temporada de Miguel** (estructura elegida por el dueño, sustituye a la ficha tipo Booksy/Fresha). La página se lee como el año del salón y no como una lista de servicios: capítulos a pantalla completa unidos por una **espina dorada vertical** con etiquetas de temporada (Marzo · Abril–septiembre · Todo el año · El salón).
 
-1. **Fallas** (negro, primera pantalla): «Fallas 2027» enorme en Jost, Miguel de la Cruz en la entradilla, cuenta atrás a la plantà, conmutador Adulta/Infantil y los cinco días 15–19 de marzo (Plantà · Ofrenda · Cremà) con sus huecos reales; cada día abre la reserva en ese día. Sello con anillos a la derecha en escritorio.
-2. **Bodas, comuniones y celebraciones** (blanco): servicios de «Peinados y recogidos».
+1. **Fallas** (negro, primera pantalla): «Fallas 2027» enorme en Jost, Miguel de la Cruz en la entradilla, cuenta atrás a la plantà, conmutador Adulta/Infantil y los cinco días 15–19 de marzo (Plantà · Ofrenda · Cremà) con su disponibilidad en palabras (Libre · Pocas horas · Completo), que se actualiza al volver a la pestaña o al cerrar la reserva; cada día abre la reserva en ese día. Sello con anillos a la derecha en escritorio.
+2. **Bodas, comuniones y celebraciones** (blanco): por momentos (La novia · Invitadas · Comuniones), cada uno con su texto y los botones de los servicios que le corresponden; se puede reservar con hasta un año de antelación.
 3. **Todo el año** (piedra): Trenzas, Peluquería y cualquier categoría nueva.
 4. **El salón** (negro): qué significa «Pentinats», estado de apertura, mapa, horario, contacto e Instagram.
 
-El flujo de reserva, el resguardo, `/cita` y el panel no cambian de estructura. La marca: noche y oro del logo, Jost para display, Figtree para texto.
+En la reserva, «¿Para cuántas personas?» es una sola línea («Para 1 persona · Añadir otra persona») hasta que se añade alguien; lo de Fallas solo aparece en servicios de fallera. En `/cita`, «Cambiar el día o la hora» reserva la nueva cita y solo después cancela la anterior. La marca: noche y oro del logo, Jost para display, Figtree para texto.
 
 ## Tokens (`public/styles.css`)
 

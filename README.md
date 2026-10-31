@@ -4,7 +4,7 @@ Web de la peluquería de Miguel de la Cruz (Calle del Cid, 12, bajo · Paterna),
 
 - **Web pública (`/`)**: perfil, servicios (falleras, trenzas, peinados y recogidos, novias, mechas), horario, mapa e Instagram.
 - **Reserva**: servicio → día → hora libre → datos → confirmación con código, enlace para cancelar y botón *Añadir al calendario*. Solo se ofrecen huecos que de verdad están libres según el horario, la duración del servicio, las citas existentes y los bloqueos; dos personas no pueden coger la misma hora.
-- **Consultar o cancelar (`/cita`)**: cada clienta recibe su enlace privado.
+- **Consultar, cambiar o cancelar (`/cita`)**: cada clienta recibe su enlace privado. Al cambiar el día o la hora, la cita anterior solo se cancela cuando la nueva queda confirmada.
 - **Panel (`/admin`)**: agenda por día, próximas citas, añadir citas a mano (las de teléfono o WhatsApp), cancelar o recuperar citas, bloquear horas o días (vacaciones, festivos), editar el horario semanal, los servicios (duración, precio opcional, visible o no) y los datos de contacto.
 
 Se publica en **Cloudflare Workers + D1** (gratis para este volumen). El mismo código funciona también con Node 22 y SQLite en local.

@@ -130,7 +130,8 @@ function bookingRow(r, { full = false } = {}) {
     end: toHHMM(r.end_min),
     name: r.name,
     status: r.status,
-    party: parseParty(r.party).map((p) => ({ name: p.name, service: p.service, start: toHHMM(p.start), end: toHHMM(p.end) })),
+    serviceId: r.service_id,
+    party: parseParty(r.party).map((p) => ({ name: p.name, serviceId: p.serviceId, service: p.service, start: toHHMM(p.start), end: toHHMM(p.end) })),
   };
   if (full) {
     Object.assign(b, {

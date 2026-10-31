@@ -34,7 +34,7 @@
   </svg>
   <header class="topbar is-scrolled">
     <div class="topbar__inner">
-      <a class="brand" href="/"><img src="/assets/logo-sello.png" alt="" width="36" height="36"><span>Miguel de la Cruz</span></a>
+      <a class="brand" href="/"><img src="/assets/logo-sello.png" alt="" width="36" height="36"><span class="brand__word">Pentinats</span></a>
     </div>
   </header>
   <main class="page" id="page" aria-live="polite">
@@ -84,9 +84,10 @@
           <a class="btn btn--ghost" href="https://www.google.com/maps/dir/?api=1&destination=Calle+del+Cid+12+Paterna" target="_blank" rel="noopener">${ICON('route')}Cómo llegar</a>
         </div>
         <section class="cancel-box" aria-labelledby="cancel-h">
-          <h2 id="cancel-h">¿No puedes venir?</h2>
-          <p class="muted">Cancela para dejar el hueco libre a otra persona. Para cambiar la hora, cancela y vuelve a reservar, o escribe a Miguel por <a href="https://ig.me/m/peinados.migueldelacruz" target="_blank" rel="noopener">Instagram</a>.</p>
+          <h2 id="cancel-h">¿Necesitas otro día u hora?</h2>
+          <p class="muted">Elige un hueco nuevo: tu cita actual solo se cancela cuando la nueva queda confirmada. Si no puedes venir, cancélala para dejar el hueco libre a otra persona.</p>
           <div class="done__actions" id="cancel-actions">
+            <a class="btn btn--ghost" href="/?cambiar=${encodeURIComponent(b.code)}&t=${encodeURIComponent(token)}">Cambiar el día o la hora</a>
             <button type="button" class="btn btn--danger" id="cancel">Cancelar la cita</button>
           </div>
         </section>`

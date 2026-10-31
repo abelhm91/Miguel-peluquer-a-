@@ -170,12 +170,14 @@ test('grupo con servicios distintos: orden, horas y nombres', async () => {
   });
   assert.equal(r.status, 201);
   assert.equal(r.data.service, 'Peinado de fallera + Peinado de fallera infantil');
-  assert.deepEqual(r.data.party, [
+  assert.deepEqual(r.data.party.map(({ serviceId, ...p }) => p), [
     { name: 'Amparo', service: 'Peinado de fallera', start: '09:00', end: '10:30' },
     { name: 'Lucía', service: 'Peinado de fallera infantil', start: '10:30', end: '11:30' },
   ]);
+  assert.deepEqual(r.data.party.map((p) => p.serviceId), [adult.id, kid.id]);
   const view = await call(`/api/bookings/${r.data.code}?t=${r.data.token}`);
   assert.equal(view.data.party[1].name, 'Lucía');
+  assert.equal(view.data.serviceId, adult.id);
 });
 
 test('hora de Madrid', () => {
