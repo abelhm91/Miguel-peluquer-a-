@@ -1,6 +1,6 @@
 # Design
 
-Web de salón con el flujo de reserva al nivel de Booksy / Fresha y una capa de marca fuerte tomada del logo: noche negra y oro. La portada es negra a pantalla completa con el nombre en Bodoni grande y el medallón dentro de un sello con anillos dorados; las secciones alternan negro (portada, Falleras, «Sobre Miguel», pie) y blanco (especialidades, servicios, visita). Las falleras son la especialidad protagonista (tarjeta negra grande).
+Web de salón con el flujo de reserva al nivel de Booksy / Fresha y una capa de marca fuerte tomada del logo: noche negra y oro. La portada es negra a pantalla completa con el nombre en Jost grande y el medallón dentro de un sello con anillos dorados; las secciones alternan negro (portada, Falleras, «Sobre Miguel», pie) y blanco (especialidades, servicios, visita). Las falleras son la especialidad protagonista (tarjeta negra grande).
 
 ## Tokens (`public/styles.css`)
 
@@ -19,7 +19,7 @@ Web de salón con el flujo de reserva al nivel de Booksy / Fresha y una capa de 
 | Sombras | `--shadow-1`, `--shadow-2` | Siempre con desplazamiento y desenfoque suave |
 | Movimiento | `--ease-out: cubic-bezier(0.16,1,0.3,1)`, 140–320 ms | Entrada del flujo, aparición del botón superior y confirmación con un pequeño «pop» |
 
-Tipografía: **Bodoni Moda** (500–700, eje óptico) para display —nombre, títulos de sección, especialidades, cita de «Sobre Miguel», categorías— emparentada con las mayúsculas «PENTINATS» del logo; **Figtree** (400–800) para texto, controles y cifras tabulares.
+Tipografía: **Jost** (400–700), sans-serif geométrica de la familia de Futura, para display —nombre, títulos de sección, especialidades, cita de «Sobre Miguel», categorías y la marca «PENTINATS» en mayúsculas espaciadas— (elegida por el dueño: quería títulos en sans geométrica); **Figtree** (400–800) para texto, controles y cifras tabulares.
 
 ## Componentes
 
