@@ -416,10 +416,9 @@
 }
 
 .special--lead {
-  grid-row: span 2;
   align-content: end;
   gap: 16px;
-  min-height: 420px;
+  min-height: 380px;
   padding: clamp(28px, 4vw, 48px);
   background: var(--night);
   border-color: var(--night);
@@ -457,6 +456,10 @@
   font-size: 1.0625rem;
 }
 
+.special--lead p {
+  max-width: 52ch;
+}
+
 .special--lead .btn {
   justify-self: start;
   margin-top: 8px;
@@ -492,8 +495,7 @@
   }
 
   .special--lead {
-    grid-row: auto;
-    min-height: 380px;
+    min-height: 360px;
   }
 }
 
@@ -1310,6 +1312,7 @@
 
 .datebar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -1326,7 +1329,34 @@
 }
 
 .datebar__nav .icon-btn {
+  flex: none;
+  width: 44px;
   border: 1px solid var(--line-strong);
+}
+
+.datebar .chip--fallas {
+  margin-left: auto;
+}
+
+.lbl-short {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .lbl-long {
+    display: none;
+  }
+
+  .lbl-short {
+    display: inline;
+  }
+
+  .datebar .chip--fallas {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: center;
+    margin-left: 0;
+  }
 }
 
 .days {
@@ -1365,6 +1395,19 @@
   font-size: 1.375rem;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.day__note--fallas {
+  color: var(--gold-ink) !important;
+  font-weight: 700;
+}
+
+.day--fallas:not([disabled]) {
+  border-color: var(--gold);
+}
+
+.day--fallas[aria-pressed='true'] .day__note--fallas {
+  color: var(--gold-bright) !important;
 }
 
 .day__note {
@@ -1716,4 +1759,29 @@
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+/* la tira de días se desvanece a la derecha: hay más días deslizando */
+.days {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  padding-right: 32px;
+}
+
+.specials__title {
+  max-width: 22ch;
+}
+
+/* en móvil ya está la barra inferior: sin botón repetido arriba */
+@media (max-width: 920px) {
+  .topbar .btn {
+    display: none;
+  }
+}
+
+.special__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
 }

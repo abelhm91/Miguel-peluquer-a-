@@ -1,5 +1,5 @@
 import {
-  $, $$, esc, api, addDays, daysBetween, weekday, longDate, shortDate, monthLabel, dow, dayNum,
+  $, $$, esc, api, addDays, daysBetween, weekday, longDate, fullDate, shortDate, monthLabel, monthShort, dow, dayNum,
   DAY_NAMES, toMin, prettyTime, prettyMin, duration, phoneHref, whatsappHref, prettyPhone, icsFor, store,
 } from './shared.js';
 
@@ -408,6 +408,7 @@ function timeView() {
   const winEnd = addDays(state.winStart, WINDOW - 1);
   const shown = winEnd < lastDay ? winEnd : lastDay;
   const fallasStart = addDays(s.fallasEnd, -13);
+  const fallasFrom = addDays(s.fallasEnd, -4); // 15 de marzo: plantà
   const showFallas = s.fallasEnd <= lastDay && (state.winStart > s.fallasEnd || winEnd < fallasStart);
 
   let days;
@@ -417,12 +418,14 @@ function timeView() {
     days = state.days
       .map((d) => {
         const disabled = !d.free;
-        const note = !d.open ? 'Cerrado' : !d.free ? 'Completo' : d.date === today ? 'Hoy' : '';
-        return `<button type="button" class="day" data-date="${d.date}" aria-pressed="${d.date === state.date}" ${disabled ? 'disabled' : ''}
+        const worksToday = d.date === today && (s.hours[weekday(d.date)] || []).length > 0;
+        const isFallas = d.date >= fallasFrom && d.date <= s.fallasEnd;
+        const note = !d.open ? (worksToday ? 'Ya cerrado' : 'Cerrado') : !d.free ? 'Completo' : d.date === today ? 'Hoy' : isFallas ? 'Fallas' : '';
+        return `<button type="button" class="day${isFallas ? ' day--fallas' : ''}" data-date="${d.date}" aria-pressed="${d.date === state.date}" ${disabled ? 'disabled' : ''}
           aria-label="${longDate(d.date)}${disabled ? `, ${note.toLowerCase()}` : ''}">
           <span class="day__dow">${dow(d.date)}</span>
           <span class="day__num">${dayNum(d.date)}</span>
-          <span class="day__note">${note || '&nbsp;'}</span>
+          <span class="day__note${isFallas && d.free ? ' day__note--fallas' : ''}">${note || '&nbsp;'}</span>
         </button>`;
       })
       .join('');
@@ -468,9 +471,9 @@ function timeView() {
     ${state.error ? `<div class="alert" role="alert">${ICON('info')}<span>${esc(state.error)}</span></div>` : ''}
     <div>
       <div class="datebar">
-        <span class="datebar__month" aria-live="polite">${rangeLabel(state.winStart, shown)}</span>
+        <span class="datebar__month" aria-live="polite"><span class="lbl-long">${rangeLabel(state.winStart, shown)}</span><span class="lbl-short" aria-hidden="true">${rangeShort(state.winStart, shown)}</span></span>
+        ${showFallas ? `<button type="button" class="chip chip--fallas" data-fallas>Ir a Fallas · 15–19 mar</button>` : ''}
         <div class="datebar__nav">
-          ${showFallas ? `<button type="button" class="chip chip--fallas" data-fallas>Fallas · marzo</button>` : ''}
           <button type="button" class="icon-btn" data-win="prev" aria-label="Fechas anteriores" ${canPrev ? '' : 'disabled'}>${ICON('back')}</button>
           <button type="button" class="icon-btn" data-win="next" aria-label="Fechas siguientes" ${canNext ? '' : 'disabled'}>${ICON('next')}</button>
         </div>
@@ -478,7 +481,7 @@ function timeView() {
       <div class="days" role="group" aria-label="Días">${days}</div>
       ${
         !canNext && state.days.length
-          ? `<p class="window-note">${ICON('info')}<span>Por ahora se puede reservar hasta el ${longDate(lastDay).toLowerCase()}. Para una fecha posterior, escribe a Miguel por <a href="https://ig.me/m/${esc(s.instagram)}" target="_blank" rel="noopener">Instagram</a>.</span></p>`
+          ? `<p class="window-note">${ICON('info')}<span>Por ahora se puede reservar hasta el ${fullDate(lastDay).toLowerCase()}. Para una fecha posterior, escribe a Miguel por <a href="https://ig.me/m/${esc(s.instagram)}" target="_blank" rel="noopener">Instagram</a>.</span></p>`
           : ''
       }
     </div>
@@ -501,12 +504,12 @@ function detailsView() {
         <span class="hint">Miguel te llamará a este número si hay algún cambio.</span>
       </div>
       <div class="field">
-        <label for="f-email">Correo electrónico <span class="muted">(opcional)</span></label>
+        <label for="f-email">Correo electrónico <span class="muted">(opcional, por si Miguel necesita escribirte)</span></label>
         <input class="input" id="f-email" name="email" type="email" autocomplete="email" maxlength="120" value="${esc(f.email)}">
       </div>
       <div class="field">
         <label for="f-notes">Notas para Miguel <span class="muted">(opcional)</span></label>
-        <textarea class="textarea" id="f-notes" name="notes" maxlength="600" placeholder="Por ejemplo: fallera infantil, fecha de la boda, largo del pelo…">${esc(f.notes)}</textarea>
+        <textarea class="textarea" id="f-notes" name="notes" maxlength="600" placeholder="Por ejemplo: la fecha de la boda, el largo del pelo o si traes tu aderezo…">${esc(f.notes)}</textarea>
       </div>
       <div class="hp" aria-hidden="true"><label>No rellenar <input name="website" tabindex="-1" autocomplete="off"></label></div>
       <p class="fineprint">Tus datos solo se usan para gestionar esta cita.</p>
@@ -516,7 +519,7 @@ function detailsView() {
 const citaUrl = (r) => `${location.origin}/cita?c=${r.code}&t=${encodeURIComponent(r.token)}`;
 
 function shareText(r) {
-  return `Mi cita con Miguel de la Cruz (Pentinats): ${r.service}, ${longDate(r.date).toLowerCase()} a las ${prettyTime(r.start)}. Calle del Cid, 12, Paterna. Código ${r.code}. Ver o cancelar: ${citaUrl(r)}`;
+  return `Cita con Miguel de la Cruz (Pentinats) a nombre de ${r.name}: ${r.service}, ${fullDate(r.date).toLowerCase()} a las ${prettyTime(r.start)}. Calle del Cid, 12, Paterna. Código ${r.code}. Ver o cancelar: ${citaUrl(r)}`;
 }
 
 function doneView() {
@@ -534,8 +537,9 @@ function doneView() {
           <div class="ticket__code"><span>Código</span><strong>${r.code}</strong></div>
         </header>
         <div class="ticket__body">
+          <div class="ticket__row">${ICON('user')}<div><strong>${esc(r.name)}</strong><span>Titular de la cita</span></div></div>
           <div class="ticket__row">${ICON('scissors')}<div><strong>${esc(r.service)}</strong><span>${duration(toMin(r.end) - toMin(r.start))}</span></div></div>
-          <div class="ticket__row">${ICON('cal')}<div><strong>${longDate(r.date)}</strong><span>de ${prettyTime(r.start)} a ${prettyTime(r.end)}</span></div></div>
+          <div class="ticket__row">${ICON('cal')}<div><strong>${fullDate(r.date)}</strong><span>de ${prettyTime(r.start)} a ${prettyTime(r.end)}</span></div></div>
           <div class="ticket__row">${ICON('pin')}<div><strong>Calle del Cid, 12, bajo</strong><span>46980 Paterna</span></div></div>
         </div>
       </article>
@@ -546,6 +550,13 @@ function doneView() {
       </div>
       <p class="done__link"><a href="${citaUrl(r)}">Ver o cancelar mi cita</a></p>
     </div>`;
+}
+
+function rangeShort(a, b) {
+  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const [ya, yb] = [a.slice(0, 4), b.slice(0, 4)];
+  if (monthShort(a) === monthShort(b) && ya === yb) return `${cap(monthShort(a))} ${ya}`;
+  return ya === yb ? `${cap(monthShort(a))} – ${monthShort(b)} ${yb}` : `${cap(monthShort(a))} ${ya} – ${monthShort(b)} ${yb}`;
 }
 
 function rangeLabel(a, b) {
@@ -564,7 +575,7 @@ function renderSummary(step) {
   const closed = step === 'closed';
   const canNext = (step === 'service' && !!s) || (step === 'time' && !!state.time) || step === 'details';
   const label = step === 'details' ? 'Confirmar cita' : 'Continuar';
-  const when = state.date && state.time ? `${longDate(state.date)}` : '';
+  const when = state.date && state.time ? `${fullDate(state.date)}` : '';
   const end = state.time && s ? prettyMin(toMin(state.time) + s.duration) : '';
 
   $('#summary').innerHTML = `
@@ -640,7 +651,7 @@ function bindStep(step) {
       state.date = null;
       state.slots = null;
       state.time = null;
-      loadDays();
+      loadDays({ prefer: addDays(s.fallasEnd, -4) });
     });
     $$('[data-win]', content).forEach((b) =>
       b.addEventListener('click', () => {
@@ -692,7 +703,7 @@ function bindStep(step) {
   }
 }
 
-async function loadDays({ keep = false } = {}) {
+async function loadDays({ keep = false, prefer = null } = {}) {
   const keepDate = keep ? state.date : null;
   const keepTime = keep ? state.time : null;
   state.daysLoading = true;
@@ -705,7 +716,7 @@ async function loadDays({ keep = false } = {}) {
     state.daysLoading = false;
     const kept = keepDate && state.days.find((d) => d.date === keepDate && d.free);
     if (kept) return selectDate(kept.date, keepTime);
-    const first = state.days.find((d) => d.free);
+    const first = (prefer && state.days.find((d) => d.free && d.date >= prefer)) || state.days.find((d) => d.free);
     if (first) return selectDate(first.date);
   } catch (e) {
     state.error = e.message;

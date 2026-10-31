@@ -58,8 +58,12 @@ const fmtShort = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'nume
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export const longDate = (d) => cap(fmtLong.format(utc(d)));
+/** Fecha larga con el año cuando no es el año en curso: "Viernes, 19 de marzo de 2027". */
+export const fullDate = (d) => (d.slice(0, 4) === String(new Date().getFullYear()) ? longDate(d) : `${longDate(d)} de ${d.slice(0, 4)}`);
 export const shortDate = (d) => cap(fmtShort.format(utc(d)).replace(/\./g, ''));
 export const monthLabel = (d) => cap(fmtMonth.format(utc(d)));
+const fmtMonthShort = new Intl.DateTimeFormat('es-ES', { month: 'short', timeZone: 'UTC' });
+export const monthShort = (d) => fmtMonthShort.format(utc(d)).replace('.', '');
 export const dow = (d) => fmtDow.format(utc(d)).replace('.', '');
 export const dayNum = (d) => utc(d).getUTCDate();
 

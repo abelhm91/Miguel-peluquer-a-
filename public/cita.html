@@ -24,6 +24,7 @@
     <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
     <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
     <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="17.5" r="2.5"/><path d="M8.6 8 20 18M8.6 16 20 6"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
   </svg>
   <header class="topbar is-scrolled">
@@ -36,7 +37,7 @@
     <div class="skeleton" style="height:220px"></div>
   </main>
   <script type="module">
-    import { $, esc, api, longDate, prettyTime, toMin, duration } from '/shared.js';
+    import { $, esc, api, fullDate, prettyTime, toMin, duration } from '/shared.js';
     const ICON = (id) => `<svg class="icon" aria-hidden="true"><use href="#i-${id}"/></svg>`;
     const q = new URLSearchParams(location.search);
     const code = (q.get('c') || '').toUpperCase();
@@ -58,8 +59,9 @@
             <div class="ticket__code"><span>Código</span><strong>${esc(b.code)}</strong></div>
           </header>
           <div class="ticket__body">
+            <div class="ticket__row">${ICON('user')}<div><strong>${esc(b.name)}</strong><span>Titular de la cita</span></div></div>
             <div class="ticket__row">${ICON('scissors')}<div><strong>${esc(b.service)}</strong><span>${duration(toMin(b.end) - toMin(b.start))}</span></div></div>
-            <div class="ticket__row">${ICON('cal')}<div><strong>${longDate(b.date)}</strong><span>de ${prettyTime(b.start)} a ${prettyTime(b.end)}</span></div></div>
+            <div class="ticket__row">${ICON('cal')}<div><strong>${fullDate(b.date)}</strong><span>de ${prettyTime(b.start)} a ${prettyTime(b.end)}</span></div></div>
             <div class="ticket__row">${ICON('pin')}<div><strong>Calle del Cid, 12, bajo</strong><span>46980 Paterna</span></div></div>
           </div>
         </article>

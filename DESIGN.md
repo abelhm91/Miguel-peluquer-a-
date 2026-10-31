@@ -1,6 +1,6 @@
 # Design
 
-Web de salón con el flujo de reserva al nivel de Booksy / Fresha y una capa de marca fuerte tomada del logo: noche negra y oro. La portada es negra a pantalla completa con el nombre en Jost grande y el medallón dentro de un sello con anillos dorados; las secciones alternan negro (portada, Falleras, «Sobre Miguel», pie) y blanco (especialidades, servicios, visita). Las falleras son la especialidad protagonista (tarjeta negra grande).
+Web de salón con el flujo de reserva al nivel de Booksy / Fresha y una capa de marca fuerte tomada del logo: noche negra y oro. La portada es negra a pantalla completa con el nombre en Jost grande y el medallón dentro de un sello con anillos dorados; las secciones alternan negro (portada, Falleras, «Sobre Miguel», pie) y blanco (especialidades, servicios, visita). Las falleras son la especialidad protagonista: el título «Especialista en falleras, trenzas, peinados y recogidos» y una única tarjeta negra a todo el ancho para Falleras (las otras especialidades viven en la lista de servicios).
 
 ## Tokens (`public/styles.css`)
 
@@ -29,7 +29,7 @@ Tipografía: **Jost** (400–700), sans-serif geométrica de la familia de Futur
 - **Flujo de reserva**: `<dialog>` a pantalla completa con pasos (Servicio — Hora — Datos), resumen fijo a la derecha en escritorio y barra inferior en móvil. Días en píldoras de 64 px (los cerrados o completos, tachados sobre `--surface`), horas en rejilla de botones de 48 px agrupadas en Mañana y Tarde.
 - **Resguardo** (ticket): cabecera negra con el sello, «PENTINATS» en dorado y el código; borde troquelado; cuerpo blanco con servicio, fecha y dirección. Se usa en la confirmación y en `/cita`. Acciones: «Enviármela por WhatsApp» (dorado), calendario (.ics con el enlace de cancelar) y copiar enlace.
 - **Sello** (`public/assets/logo-sello.png`): el medallón del logo recortado sin el rótulo caligráfico (que en la captura sale cortado). Se usa en todos los tamaños pequeños y en la portada; el logo completo solo queda para la imagen al compartir.
-- **Horas**: cada 30 min por defecto, agrupadas en Mañana / Mediodía / Tarde, 6 por franja y «Ver todas las horas». Atajo «Fallas · marzo» en la barra de fechas y aviso dorado al llegar al final del calendario (que siempre llega hasta el 19 de marzo siguiente).
+- **Horas**: cada 30 min por defecto, agrupadas en Mañana / Mediodía / Tarde, 6 por franja y «Ver todas las horas». Atajo «Ir a Fallas · 15–19 mar» en la barra de fechas (en móvil, en su propia línea; elige el primer día libre desde el 15 y los días 15–19 llevan nota dorada «Fallas») y aviso dorado al llegar al final del calendario (que siempre llega hasta el 19 de marzo siguiente).
 - **Panel**: barra con pestañas en píldora, tarjetas de cita (hora | persona | acción) y bloqueos con rayado diagonal (convención de calendario para el tiempo no disponible).
 
 - **Sello de portada**: medallón del logo dentro de dos anillos dorados finos con el texto «PEINADOS · FALLERAS · TRENZAS · RECOGIDOS · PATERNA» en círculo. Único momento de movimiento: el sello gira hasta su sitio y el titular sube al cargar.
