@@ -60,6 +60,6 @@ INSERT INTO services (category, name, description, duration, sort)
 INSERT INTO services (category, name, description, duration, sort)
   SELECT 'Peinados y recogidos', 'Recogido', 'Recogido para bodas, comuniones y celebraciones.', 60, 4 WHERE (SELECT COUNT(*) FROM services) = 4;
 INSERT INTO services (category, name, description, duration, sort)
-  SELECT 'Peinados y recogidos', 'Novia', 'Peinado o recogido de novia. Cuéntale a Miguel la fecha de la boda en las notas.', 90, 5 WHERE (SELECT COUNT(*) FROM services) = 5;
+  SELECT 'Peinados y recogidos', 'Novia', 'Peinado o recogido de novia. Cuéntame la fecha de la boda en las notas.', 90, 5 WHERE (SELECT COUNT(*) FROM services) = 5;
 INSERT INTO services (category, name, description, duration, sort)
   SELECT 'Peluquería', 'Mechas', 'Mechas y color.', 120, 6 WHERE (SELECT COUNT(*) FROM services) = 6;

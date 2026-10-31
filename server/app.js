@@ -302,7 +302,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     }
     const baseNotes = str(body.notes, 600);
     if (name.length < 2) throw bad('Escribe tu nombre.');
-    if (source === 'web' && phone.replace(/\D/g, '').length < 9) throw bad('Escribe un teléfono válido para que Miguel pueda avisarte.');
+    if (source === 'web' && phone.replace(/\D/g, '').length < 9) throw bad('Escribe un teléfono válido para que pueda avisarte.');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw bad('Revisa el correo electrónico.');
     const custom = Number(body.duration);
     const duration =
@@ -399,12 +399,12 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       let old = null;
       if (body.replaces && typeof body.replaces === 'object') {
         old = await db.get("SELECT * FROM bookings WHERE code = ? AND status = 'confirmed'", str(body.replaces.code, 6).toUpperCase());
-        if (!old || !safeEqual(old.token, String(body.replaces.token || ''))) throw new HttpError(404, 'No encontramos la cita que quieres cambiar.');
+        if (!old || !safeEqual(old.token, String(body.replaces.token || ''))) throw new HttpError(404, 'No encuentro la cita que quieres cambiar.');
         if (!cleanPhone(body.phone)) body.phone = old.phone;
         if (!str(body.email)) body.email = old.email;
       }
       if (!old && !bookingLimiter(ip)) {
-        throw new HttpError(429, 'Has hecho varias reservas seguidas. Espera un rato o escribe a Miguel por Instagram (@peinados.migueldelacruz).');
+        throw new HttpError(429, 'Has hecho varias reservas seguidas. Espera un rato o escríbeme por Instagram (@peinados.migueldelacruz).');
       }
       if (str(body.website)) return json(201, { ok: true }); // trampa anti-spam
       const created = await createBooking(body, { source: 'web' });
@@ -417,14 +417,14 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
 
     if (m === 'GET' && (mm = path.match(/^\/api\/bookings\/([A-Z0-9]{6})$/))) {
       const row = await db.get('SELECT * FROM bookings WHERE code = ?', mm[1]);
-      if (!row || !safeEqual(row.token, url.searchParams.get('t') || '')) throw new HttpError(404, 'No encontramos esa reserva.');
+      if (!row || !safeEqual(row.token, url.searchParams.get('t') || '')) throw new HttpError(404, 'No encuentro esa reserva.');
       return json(200, bookingRow(row));
     }
 
     if (m === 'POST' && (mm = path.match(/^\/api\/bookings\/([A-Z0-9]{6})\/cancel$/))) {
       const body = await readJson(req);
       const row = await db.get('SELECT * FROM bookings WHERE code = ?', mm[1]);
-      if (!row || !safeEqual(row.token, String(body.token || ''))) throw new HttpError(404, 'No encontramos esa reserva.');
+      if (!row || !safeEqual(row.token, String(body.token || ''))) throw new HttpError(404, 'No encuentro esa reserva.');
       if (row.status === 'confirmed') {
         await db.run("UPDATE bookings SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?", row.id);
       }

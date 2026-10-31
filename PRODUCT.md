@@ -45,7 +45,8 @@ Peluquería de autor especializada en peinados de fallera, trenzas y recogidos: 
 
 - Nombre: Miguel de la Cruz. Marca en el logo: "Pentinats". Usuario de Instagram: peinados.migueldelacruz.
 - Logo existente: medallón negro con marco dorado ornamentado, retrato y rótulo caligráfico "Miguel de la Cruz" (solo disponible en baja resolución desde una captura de Instagram).
-- Idioma: español.
+- Idioma: español. Voz: primera persona de Miguel («Soy Miguel de la Cruz y peino falleras…», «Te llamaré…», «Escríbeme por Instagram»); a la clienta se la trata de tú (decisión del dueño, 2026-10-31).
+- Precios: en euros, los pone Miguel en el panel (solo el número); la web muestra «50 €» y suma el total en citas de varias personas.
 - Preferencia de diseño (elegida por el dueño, 2026-10-31): web de salón estándar, sin tematización fallera; el listón de calidad y de flujo de reserva es Booksy / Fresha.
 - Logo recortado de la captura en `public/assets/logo-pentinats.png` (204 px, baja resolución: sustituir por el original cuando exista).
 

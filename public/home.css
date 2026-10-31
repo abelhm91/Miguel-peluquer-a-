@@ -877,3 +877,9 @@
     display: block;
   }
 }
+
+.seg__price {
+  font-weight: 500;
+  opacity: 0.75;
+  margin-left: 2px;
+}

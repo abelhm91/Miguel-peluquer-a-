@@ -61,7 +61,7 @@
       page.innerHTML = `
         <div>
           <span class="status ${active ? 'status--ok' : 'status--off'}">${active ? 'Confirmada' : 'Cancelada'}</span>
-          <h1 style="margin-top:12px">${active ? 'Tu cita con Miguel' : 'Cita cancelada'}</h1>
+          <h1 style="margin-top:12px">${active ? 'Tu cita conmigo' : 'Cita cancelada'}</h1>
         </div>
         ${msg ? `<div class="alert alert--ok" role="status">${ICON('info')}<span>${esc(msg)}</span></div>` : ''}
         <article class="ticket" aria-label="Resguardo de la cita">
@@ -85,7 +85,7 @@
         </div>
         <section class="cancel-box" aria-labelledby="cancel-h">
           <h2 id="cancel-h">¿Necesitas otro día u hora?</h2>
-          <p class="muted">Elige un hueco nuevo: tu cita actual solo se cancela cuando la nueva queda confirmada. Si no puedes venir, cancélala para dejar el hueco libre a otra persona.</p>
+          <p class="muted">Elige un hueco nuevo: solo cancelo tu cita actual cuando la nueva queda confirmada. Si no puedes venir, cancélala para que pueda dar el hueco a otra persona.</p>
           <div class="done__actions" id="cancel-actions">
             <a class="btn btn--ghost" href="/?cambiar=${encodeURIComponent(b.code)}&t=${encodeURIComponent(token)}">Cambiar el día o la hora</a>
             <button type="button" class="btn btn--danger" id="cancel">Cancelar la cita</button>
@@ -112,7 +112,7 @@
           e.currentTarget.classList.add('is-loading');
           try {
             const nb = await api(`/api/bookings/${code}/cancel`, { method: 'POST', body: { token } });
-            view(nb, 'Hemos cancelado tu cita. Gracias por avisar.');
+            view(nb, 'He cancelado tu cita. ¡Gracias por avisarme!');
           } catch (err) {
             view(b, '');
             page.insertAdjacentHTML('afterbegin', `<div class="alert" role="alert">${ICON('info')}<span>${esc(err.message)}</span></div>`);
@@ -126,8 +126,8 @@
       try {
         view(await api(`/api/bookings/${encodeURIComponent(code)}?t=${encodeURIComponent(token)}`));
       } catch (e) {
-        page.innerHTML = `<h1>No encontramos la cita</h1>
-          <p class="muted">El enlace puede estar incompleto. Usa el enlace exacto que recibiste al reservar o escribe a Miguel por Instagram.</p>
+        page.innerHTML = `<h1>No encuentro tu cita</h1>
+          <p class="muted">El enlace puede estar incompleto. Usa el enlace exacto que recibiste al reservar o escríbeme por Instagram.</p>
           <div class="done__actions"><a class="btn" href="/">Ir a la web</a></div>`;
       }
     }

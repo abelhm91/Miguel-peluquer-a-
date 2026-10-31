@@ -450,7 +450,7 @@ function serviceForm(s = {}) {
         <div class="field"><label for="s-name-${id}">Nombre</label><input class="input" id="s-name-${id}" name="name" required value="${esc(s.name ?? '')}"></div>
         <div class="field"><label for="s-cat-${id}">Categoría</label><input class="input" id="s-cat-${id}" name="category" list="cats" value="${esc(s.category ?? '')}"></div>
         <div class="field"><label for="s-dur-${id}">Minutos</label><input class="input" id="s-dur-${id}" name="duration" type="number" min="10" max="600" step="5" required value="${s.duration ?? 60}"></div>
-        <div class="field"><label for="s-price-${id}">Precio</label><input class="input" id="s-price-${id}" name="price" placeholder="Opcional" value="${esc(s.price ?? '')}"></div>
+        <div class="field"><label for="s-price-${id}">Precio (€)</label><input class="input" id="s-price-${id}" name="price" inputmode="decimal" placeholder="Ej.: 50" value="${esc(s.price ?? '')}"></div>
       </div>
       <div class="field"><label for="s-desc-${id}">Descripción</label><input class="input" id="s-desc-${id}" name="description" value="${esc(s.description ?? '')}"></div>
       <div class="actions">
@@ -468,7 +468,7 @@ function renderServices() {
   const cats = [...new Set(services.map((s) => s.category).filter(Boolean))];
   view.innerHTML = `
     <div class="view-head"><h1>Servicios</h1></div>
-    <p class="muted" style="margin:-8px 0 16px">La duración decide cuánto hueco ocupa cada cita. El precio es opcional: si lo dejas vacío no se muestra.</p>
+    <p class="muted" style="margin:-8px 0 16px">La duración decide cuánto hueco ocupa cada cita. El precio va en euros (escribe solo el número, por ejemplo 50). Si lo dejas vacío no se muestra.</p>
     <datalist id="cats">${cats.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
     <div class="stack">${services.map(serviceForm).join('')}</div>
     <h2 style="margin:28px 0 12px;font-size:1.125rem">Nuevo servicio</h2>

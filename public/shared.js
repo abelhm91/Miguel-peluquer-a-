@@ -160,3 +160,18 @@ export function partyRows(r, icon = (id) => `<svg class="icon" aria-hidden="true
   return `<div class="ticket__row">${icon('user')}<div><strong>${esc(r.name)}</strong><span>Reserva a su nombre</span></div></div>
     <div class="ticket__row">${icon('scissors')}<div><strong>${esc(r.service)}</strong><span>${dur(r.start, r.end)}</span></div></div>`;
 }
+
+/** Precio en euros: "50" → "50 €", "35,5" → "35,50 €"; un texto libre ("desde 40 €") se deja tal cual. */
+export function euros(v) {
+  const t = String(v ?? '').trim();
+  if (!t) return '';
+  const m = t.replace(/\s*€$/, '').match(/^(\d+)(?:[.,](\d{1,2}))?$/);
+  if (!m) return t;
+  return m[2] ? `${m[1]},${m[2].padEnd(2, '0')} €` : `${m[1]} €`;
+}
+
+/** Valor numérico de un precio (null si no es un número simple). */
+export function priceValue(v) {
+  const m = String(v ?? '').trim().replace(/\s*€$/, '').match(/^(\d+)(?:[.,](\d{1,2}))?$/);
+  return m ? Number(`${m[1]}.${m[2] || 0}`) : null;
+}
