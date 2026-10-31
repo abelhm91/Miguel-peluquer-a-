@@ -15,7 +15,7 @@ La web se publica como un **Cloudflare Worker**: las páginas de `public/` se si
 
 La base de datos D1 `pentinats-reservas` ya está creada (región Europa occidental), con las tablas y los servicios iniciales, y su id está en `wrangler.jsonc`. Solo falta desplegar el Worker y poner los dos secretos.
 
-**Opción A — desde el panel de Cloudflare, sin instalar nada:** *Workers & Pages* → *Create* → *Import a repository* → este repositorio y la rama que quieras publicar. Nombre del proyecto: `pentinats-reservas` (debe coincidir con `wrangler.jsonc`); comando de despliegue: `npx wrangler deploy`. Cuando termine, en el Worker → *Settings* → *Variables and Secrets* añade `ADMIN_PASSWORD` y `SESSION_SECRET` como tipo **Secret**. A partir de ahí, cada `git push` a esa rama vuelve a publicar.
+**Opción A — desde el panel de Cloudflare, sin instalar nada:** *Workers & Pages* → *Create* → *Import a repository* → este repositorio y la rama que quieras publicar. Nombre del proyecto: `miguel-peluquer-a` (debe coincidir con `wrangler.jsonc`); comando de despliegue: `npx wrangler deploy`. Cuando termine, en el Worker → *Settings* → *Variables and Secrets* añade `ADMIN_PASSWORD` y `SESSION_SECRET` como tipo **Secret**. A partir de ahí, cada `git push` a esa rama vuelve a publicar.
 
 **Opción B — desde un ordenador con Node 22**, dentro de la carpeta del proyecto:
 
@@ -24,7 +24,7 @@ npm install
 npx wrangler login                                   # abre el navegador para entrar en tu cuenta de Cloudflare
 npx wrangler secret put ADMIN_PASSWORD               # contraseña del panel de Miguel
 npx wrangler secret put SESSION_SECRET               # cualquier texto largo y aleatorio
-npm run deploy                                       # publica: https://pentinats-reservas.<tu-subdominio>.workers.dev
+npm run deploy                                       # publica: https://miguel-peluquer-a.<tu-subdominio>.workers.dev
 ```
 
 Para usar un dominio propio (por ejemplo `migueldelacruz.es`): en el panel de Cloudflare → *Workers & Pages* → `pentinats-reservas` → *Settings* → *Domains & Routes* → *Add custom domain*.

@@ -1,7 +1,7 @@
 // Configuración de Cloudflare Workers. Pasos en el README («Publicar en Cloudflare»).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "pentinats-reservas",
+  "name": "miguel-peluquer-a",
   "main": "worker.js",
   "compatibility_date": "2026-10-01",
   "assets": {
