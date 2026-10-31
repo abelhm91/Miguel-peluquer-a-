@@ -8,7 +8,7 @@
   <link rel="icon" href="/assets/logo-pentinats.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/site.css">
   <style>
@@ -28,7 +28,7 @@
   </svg>
   <header class="topbar is-scrolled">
     <div class="topbar__inner">
-      <a class="brand" href="/"><img src="/assets/logo-pentinats.png" alt="" width="36" height="36"><span>Miguel de la Cruz</span></a>
+      <a class="brand" href="/"><img src="/assets/logo-sello.png" alt="" width="36" height="36"><span>Miguel de la Cruz</span></a>
     </div>
   </header>
   <main class="page" id="page" aria-live="polite">
@@ -51,12 +51,18 @@
           <h1 style="margin-top:12px">${active ? 'Tu cita con Miguel' : 'Cita cancelada'}</h1>
         </div>
         ${msg ? `<div class="alert alert--ok" role="status">${ICON('info')}<span>${esc(msg)}</span></div>` : ''}
-        <div class="ticket">
-          <div class="ticket__row">${ICON('scissors')}<div><strong>${esc(b.service)}</strong><span>${duration(toMin(b.end) - toMin(b.start))}</span></div></div>
-          <div class="ticket__row">${ICON('cal')}<div><strong>${longDate(b.date)}</strong><span>de ${prettyTime(b.start)} a ${prettyTime(b.end)}</span></div></div>
-          <div class="ticket__row">${ICON('pin')}<div><strong>Calle del Cid, 12, bajo</strong><span>46980 Paterna</span></div></div>
-          <div class="ticket__code"><span class="muted">Código de reserva</span><strong>${esc(b.code)}</strong></div>
-        </div>
+        <article class="ticket" aria-label="Resguardo de la cita">
+          <header class="ticket__head">
+            <img src="/assets/logo-sello.png" alt="" width="150" height="150">
+            <div><span class="ticket__brand">Pentinats</span><strong>Miguel de la Cruz</strong></div>
+            <div class="ticket__code"><span>Código</span><strong>${esc(b.code)}</strong></div>
+          </header>
+          <div class="ticket__body">
+            <div class="ticket__row">${ICON('scissors')}<div><strong>${esc(b.service)}</strong><span>${duration(toMin(b.end) - toMin(b.start))}</span></div></div>
+            <div class="ticket__row">${ICON('cal')}<div><strong>${longDate(b.date)}</strong><span>de ${prettyTime(b.start)} a ${prettyTime(b.end)}</span></div></div>
+            <div class="ticket__row">${ICON('pin')}<div><strong>Calle del Cid, 12, bajo</strong><span>46980 Paterna</span></div></div>
+          </div>
+        </article>
         <div class="done__actions">
           ${active ? `<button class="btn btn--danger" id="cancel">Cancelar la cita</button>` : `<a class="btn" href="/#reservar">Reservar otra cita</a>`}
           <a class="btn btn--ghost" href="/">Volver a la web</a>

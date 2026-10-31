@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { nodeAdapter, saveSettings } from '../server/db.js';
 import { createApi } from '../server/app.js';
-import { freeSlots } from '../server/availability.js';
+import { freeSlots, daySummary, effectiveMaxDays } from '../server/availability.js';
 import { addDays, nowInMadrid } from '../server/time.js';
 
 // Lunes fijo para que los tests no dependan del día en que se ejecutan.
@@ -46,7 +46,9 @@ test('antelación mínima y límite de días', async () => {
   const settings = { hours: Array(7).fill(HOURS[0]), slotStep: 30, minNoticeMinutes: 120, maxDaysAhead: 10 };
   const now = { date: MONDAY, minutes: 600 };
   assert.equal((await freeSlots(db, settings, MONDAY, 30, now))[0], 720);
-  assert.deepEqual(await freeSlots(db, settings, addDays(MONDAY, 11), 30, now), []);
+  // El límite (10 días) se amplía siempre hasta el final de las próximas Fallas (19 de marzo).
+  assert.ok((await freeSlots(db, settings, '2030-03-19', 30, now)).length > 0, 'se puede reservar en Fallas');
+  assert.deepEqual(await freeSlots(db, settings, '2030-03-20', 30, now), [], 'después de Fallas y del límite, no');
   assert.deepEqual(await freeSlots(db, settings, addDays(MONDAY, -1), 30, now), []);
   // a las 23:00 con 2 h de antelación, mañana no se puede antes de la 1:00 (irrelevante aquí) pero sí a las 9:00
   assert.equal((await freeSlots(db, settings, addDays(MONDAY, 1), 30, { date: MONDAY, minutes: 1380 }))[0], 540);
@@ -126,6 +128,16 @@ test('panel: requiere sesión, citas manuales, bloqueos y horario', async () => 
   const closed = await call('/api/admin/settings', { method: 'PUT', cookie, body: { hours: [[], [], [], [], [], [], []] } });
   assert.equal(closed.status, 200);
   assert.equal((await call('/api/info')).data.settings.bookingOpen, false);
+});
+
+test('ventana de Fallas y día ya cerrado', async () => {
+  const { db } = await setup();
+  const settings = { hours: Array(7).fill(HOURS[0]), slotStep: 30, minNoticeMinutes: 120, maxDaysAhead: 120 };
+  // En octubre, 120 días no llegan a marzo: la ventana se estira hasta el 19 de marzo.
+  assert.equal(effectiveMaxDays(settings, '2026-10-31'), 139);
+  // A las 21:00 ya no queda nada hoy: el día cuenta como cerrado, no como completo.
+  const [today] = await daySummary(db, settings, '2030-03-04', 1, 60, { date: '2030-03-04', minutes: 1260 });
+  assert.deepEqual(today, { date: '2030-03-04', open: false, free: 0 });
 });
 
 test('hora de Madrid', () => {

@@ -104,7 +104,8 @@ export function prettyPhone(p) {
 }
 
 /** Fichero .ics para añadir la cita al calendario del móvil. */
-export function icsFor({ code, service, date, start, end, address }) {
+export function icsFor({ code, service, date, start, end, address, link = '' }) {
+  const esc = (t) => String(t).replace(/\\/g, '\\\\').replace(/[,;]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
   const stamp = (d, t) => `${d.replace(/-/g, '')}T${t.replace(':', '')}00`;
   const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
   const lines = [
@@ -117,8 +118,9 @@ export function icsFor({ code, service, date, start, end, address }) {
     `DTSTART;TZID=Europe/Madrid:${stamp(date, start)}`,
     `DTEND;TZID=Europe/Madrid:${stamp(date, end)}`,
     `SUMMARY:${service} · Miguel de la Cruz`,
-    `LOCATION:${address.replace(/,/g, '\\,')}`,
-    `DESCRIPTION:Código de reserva ${code}`,
+    `LOCATION:${esc(address)}`,
+    `DESCRIPTION:${esc(`Código de reserva ${code}${link ? `\nVer o cancelar la cita: ${link}` : ''}`)}`,
+    ...(link ? [`URL:${link}`] : []),
     'END:VEVENT',
     'END:VCALENDAR',
   ];

@@ -543,7 +543,8 @@ function renderSettings() {
               ${[[14, '2 semanas'], [30, '1 mes'], [60, '2 meses'], [90, '3 meses'], [120, '4 meses'], [180, '6 meses'], [365, '1 año']]
                 .map(([v, l]) => `<option value="${v}" ${s.maxDaysAhead === v ? 'selected' : ''}>${l} vista</option>`)
                 .join('')}
-            </select></div>
+            </select>
+            <span class="hint">Siempre se puede reservar, como mínimo, hasta el 19 de marzo de las próximas Fallas.</span></div>
         </div>
         <div class="field"><label for="st-step">Ofrecer horas cada</label>
           <select class="select" id="st-step" name="slotStep">

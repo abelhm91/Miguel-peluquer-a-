@@ -15,9 +15,9 @@ export const DEFAULT_SETTINGS = {
   instagram: 'peinados.migueldelacruz',
   address: 'Calle del Cid, 12, bajo',
   city: '46980 Paterna, Valencia',
-  slotStep: 15, // minutos entre horas de inicio ofrecidas
+  slotStep: 30, // minutos entre horas de inicio ofrecidas
   minNoticeMinutes: 120, // antelación mínima para reservar online
-  maxDaysAhead: 120, // hasta cuántos días vista se puede reservar
+  maxDaysAhead: 120, // días vista (como mínimo siempre hasta las próximas Fallas)
   bookingNote: '',
 };
 

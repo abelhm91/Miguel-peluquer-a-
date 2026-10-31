@@ -23,11 +23,13 @@ Tipografía: **Jost** (400–700), sans-serif geométrica de la familia de Futur
 
 ## Componentes
 
-- **Botón**: píldora negra de 48 px (primario), dorada (`--gold`, sobre negro y como acción principal de marca), línea marfil (`--line`, sobre negro), contorno (`--ghost`), `--danger`, `--small`, estado `is-loading` con spinner.
+- **Botón**: píldora negra de 48 px, dorada (`--gold`: la acción principal en toda la web y en la reserva), línea marfil (`--line`, sobre negro), contorno (`--ghost`), `--danger`, `--small`, estado `is-loading` con spinner.
 - **Chip** de categoría: píldora con borde, negra cuando está activa (`aria-current`).
 - **Fila de servicio**: nombre, descripción, duración y precio opcional, con «Reservar» de contorno a la derecha y separadores finos.
 - **Flujo de reserva**: `<dialog>` a pantalla completa con pasos (Servicio — Hora — Datos), resumen fijo a la derecha en escritorio y barra inferior en móvil. Días en píldoras de 64 px (los cerrados o completos, tachados sobre `--surface`), horas en rejilla de botones de 48 px agrupadas en Mañana y Tarde.
-- **Resguardo** (ticket): servicio, fecha, dirección y código con separador discontinuo.
+- **Resguardo** (ticket): cabecera negra con el sello, «PENTINATS» en dorado y el código; borde troquelado; cuerpo blanco con servicio, fecha y dirección. Se usa en la confirmación y en `/cita`. Acciones: «Enviármela por WhatsApp» (dorado), calendario (.ics con el enlace de cancelar) y copiar enlace.
+- **Sello** (`public/assets/logo-sello.png`): el medallón del logo recortado sin el rótulo caligráfico (que en la captura sale cortado). Se usa en todos los tamaños pequeños y en la portada; el logo completo solo queda para la imagen al compartir.
+- **Horas**: cada 30 min por defecto, agrupadas en Mañana / Mediodía / Tarde, 6 por franja y «Ver todas las horas». Atajo «Fallas · marzo» en la barra de fechas y aviso dorado al llegar al final del calendario (que siempre llega hasta el 19 de marzo siguiente).
 - **Panel**: barra con pestañas en píldora, tarjetas de cita (hora | persona | acción) y bloqueos con rayado diagonal (convención de calendario para el tiempo no disponible).
 
 - **Sello de portada**: medallón del logo dentro de dos anillos dorados finos con el texto «PEINADOS · FALLERAS · TRENZAS · RECOGIDOS · PATERNA» en círculo. Único momento de movimiento: el sello gira hasta su sitio y el titular sube al cargar.

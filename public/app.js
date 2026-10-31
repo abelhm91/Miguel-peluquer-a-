@@ -23,7 +23,26 @@ const state = {
   error: '',
   submitting: false,
   result: null,
+  allTimes: false,
 };
+
+/* Reserva en curso: sobrevive a una recarga o a cambiar de app (solo en esta pestaña). */
+const FLOW_KEY = 'pentinats:flujo';
+function saveFlow() {
+  try {
+    if (!dlg.open || state.step === 'done') sessionStorage.removeItem(FLOW_KEY);
+    else sessionStorage.setItem(FLOW_KEY, JSON.stringify({ serviceId: state.serviceId, step: state.step, winStart: state.winStart, date: state.date, time: state.time }));
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}
+function readFlow() {
+  try {
+    return JSON.parse(sessionStorage.getItem(FLOW_KEY) || 'null');
+  } catch {
+    return null;
+  }
+}
 
 const service = () => state.services.find((s) => s.id === state.serviceId);
 const settings = () => state.info.settings;
@@ -45,7 +64,14 @@ async function boot() {
   renderStatus();
   renderContact();
   setupTopbar();
-  if (location.hash === '#reservar') openBooking();
+  if (location.hash === '#reservar') {
+    const f = readFlow();
+    if (f && state.services.some((x) => x.id === f.serviceId) && (!f.winStart || f.winStart >= state.info.today)) {
+      Object.assign(state, { serviceId: f.serviceId, winStart: f.winStart || state.info.today, date: f.date, time: f.time });
+      state.step = f.step === 'details' && !(f.date && f.time) ? 'time' : f.step;
+    }
+    openBooking();
+  }
 }
 
 function groups() {
@@ -161,7 +187,10 @@ function renderStatus() {
     side.innerHTML = `<span class="muted">La reserva online abrirá muy pronto.</span>`;
     return;
   }
-  const html = `<span class="${st.open ? 'status-open' : 'status-closed'}">${st.open ? 'Abierto' : 'Cerrado'}</span>&nbsp;· ${st.text}`;
+  // Cerrado no se pinta en rojo: la reserva online funciona a cualquier hora.
+  const html = st.open
+    ? `<span class="status-open">Abierto ahora</span>&nbsp;· ${st.text}`
+    : `<span class="status-neutral">Reserva online 24 h</span>&nbsp;· ${st.text}`;
   el.hidden = false;
   el.innerHTML = `${ICON('clock')}<span>${html}</span>`;
   side.hidden = false;
@@ -230,6 +259,7 @@ function openBooking(serviceId = null) {
     state.serviceId = serviceId;
     state.step = 'time';
     resetTime();
+    state.winStart = state.info.today;
   } else {
     state.step = state.serviceId ? state.step : 'service';
     if (state.step === 'done') state.step = 'service';
@@ -240,7 +270,7 @@ function openBooking(serviceId = null) {
     if (location.hash !== '#reservar') history.pushState({ booking: true }, '', '#reservar');
   }
   render();
-  if (state.step === 'time' && !state.days.length && settings().bookingOpen) loadDays();
+  if (state.step === 'time' && !state.days.length && settings().bookingOpen) loadDays({ keep: true });
 }
 
 function closeBooking() {
@@ -250,6 +280,7 @@ function closeBooking() {
 
 function hideDialog() {
   if (dlg.open) dlg.close();
+  saveFlow();
   document.documentElement.style.overflow = '';
   if (state.step === 'done') {
     state.serviceId = null;
@@ -282,6 +313,7 @@ function resetTime() {
   state.date = null;
   state.slots = null;
   state.time = null;
+  state.allTimes = false;
 }
 
 function go(step) {
@@ -290,7 +322,7 @@ function go(step) {
   render();
   content.focus({ preventScroll: true });
   $('.booking__body').scrollTop = 0;
-  if (step === 'time' && !state.days.length) loadDays();
+  if (step === 'time' && !state.days.length) loadDays({ keep: true });
 }
 
 const TITLES = {
@@ -324,6 +356,8 @@ function render() {
 
   renderSummary(step);
   bindStep(step);
+  $('.booking__body').classList.toggle('is-single', step === 'done' || closed);
+  saveFlow();
 }
 
 /* ----- vistas ----- */
@@ -371,7 +405,10 @@ function timeView() {
   const lastDay = addDays(today, s.maxDaysAhead);
   const canPrev = state.winStart > today;
   const canNext = daysBetween(state.winStart, lastDay) >= WINDOW;
-  const labelDate = state.date || state.winStart;
+  const winEnd = addDays(state.winStart, WINDOW - 1);
+  const shown = winEnd < lastDay ? winEnd : lastDay;
+  const fallasStart = addDays(s.fallasEnd, -13);
+  const showFallas = s.fallasEnd <= lastDay && (state.winStart > s.fallasEnd || winEnd < fallasStart);
 
   let days;
   if (state.daysLoading && !state.days.length) {
@@ -403,15 +440,27 @@ function timeView() {
     if (!state.slots.length) {
       slots = `<div class="empty-state"><p>Este día ya no tiene huecos libres. Prueba con otro.</p></div>`;
     } else {
-      const morning = state.slots.filter((t) => toMin(t) < 14 * 60);
-      const afternoon = state.slots.filter((t) => toMin(t) >= 14 * 60);
-      const grp = (title, list) =>
-        list.length
-          ? `<div class="slots-group"><h3>${title}</h3><div class="slots">${list
-              .map((t) => `<button type="button" class="slot" data-time="${t}" aria-pressed="${t === state.time}">${prettyTime(t)}</button>`)
-              .join('')}</div></div>`
-          : '';
-      slots = `<div><h3 class="visually-hidden">Horas libres el ${longDate(state.date)}</h3>${grp('Mañana', morning)}${grp('Tarde', afternoon)}</div>`;
+      // Pocas horas a la vista por franja; el resto, con "Ver todas las horas".
+      const LIMIT = 6;
+      const bands = [
+        ['Mañana', state.slots.filter((t) => toMin(t) < 12 * 60)],
+        ['Mediodía', state.slots.filter((t) => toMin(t) >= 12 * 60 && toMin(t) < 16 * 60)],
+        ['Tarde', state.slots.filter((t) => toMin(t) >= 16 * 60)],
+      ];
+      const all = state.allTimes || bands.every(([, l]) => l.length <= LIMIT) || (state.time && bands.some(([, l]) => l.indexOf(state.time) >= LIMIT));
+      let hidden = 0;
+      const grp = ([title, list]) => {
+        if (!list.length) return '';
+        const vis = all ? list : list.slice(0, LIMIT);
+        hidden += list.length - vis.length;
+        return `<div class="slots-group"><h3>${title}</h3><div class="slots">${vis
+          .map((t) => `<button type="button" class="slot" data-time="${t}" aria-pressed="${t === state.time}">${prettyTime(t)}</button>`)
+          .join('')}</div></div>`;
+      };
+      const html = bands.map(grp).join('');
+      slots = `<div><h3 class="visually-hidden">Horas libres el ${longDate(state.date)}</h3>${html}${
+        hidden ? `<button type="button" class="link-btn more-times" data-all-times>Ver todas las horas (${hidden} más)</button>` : ''
+      }</div>`;
     }
   }
 
@@ -419,13 +468,19 @@ function timeView() {
     ${state.error ? `<div class="alert" role="alert">${ICON('info')}<span>${esc(state.error)}</span></div>` : ''}
     <div>
       <div class="datebar">
-        <span class="datebar__month" aria-live="polite">${monthLabel(labelDate)}</span>
+        <span class="datebar__month" aria-live="polite">${rangeLabel(state.winStart, shown)}</span>
         <div class="datebar__nav">
+          ${showFallas ? `<button type="button" class="chip chip--fallas" data-fallas>Fallas · marzo</button>` : ''}
           <button type="button" class="icon-btn" data-win="prev" aria-label="Fechas anteriores" ${canPrev ? '' : 'disabled'}>${ICON('back')}</button>
           <button type="button" class="icon-btn" data-win="next" aria-label="Fechas siguientes" ${canNext ? '' : 'disabled'}>${ICON('next')}</button>
         </div>
       </div>
       <div class="days" role="group" aria-label="Días">${days}</div>
+      ${
+        !canNext && state.days.length
+          ? `<p class="window-note">${ICON('info')}<span>Por ahora se puede reservar hasta el ${longDate(lastDay).toLowerCase()}. Para una fecha posterior, escribe a Miguel por <a href="https://ig.me/m/${esc(s.instagram)}" target="_blank" rel="noopener">Instagram</a>.</span></p>`
+          : ''
+      }
     </div>
     <div aria-live="polite">${slots}</div>
     ${s.bookingNote ? `<p class="fineprint">${esc(s.bookingNote)}</p>` : ''}`;
@@ -458,27 +513,48 @@ function detailsView() {
     </form>`;
 }
 
+const citaUrl = (r) => `${location.origin}/cita?c=${r.code}&t=${encodeURIComponent(r.token)}`;
+
+function shareText(r) {
+  return `Mi cita con Miguel de la Cruz (Pentinats): ${r.service}, ${longDate(r.date).toLowerCase()} a las ${prettyTime(r.start)}. Calle del Cid, 12, Paterna. Código ${r.code}. Ver o cancelar: ${citaUrl(r)}`;
+}
+
 function doneView() {
   const r = state.result;
-  const link = `/cita?c=${r.code}&t=${encodeURIComponent(r.token)}`;
   return `
     <div class="done">
-      <div class="done__badge">${ICON('check')}</div>
       <div>
         <h3>¡Listo, ${esc(r.name.split(' ')[0])}! Tu cita está confirmada</h3>
-        <p class="booking__lede" style="margin-top:8px">Miguel te espera. Guarda el enlace para consultarla o cancelarla.</p>
+        <p class="booking__lede">Guárdate el enlace de tu cita: con él puedes consultarla o cancelarla cuando quieras.</p>
       </div>
-      <div class="ticket">
-        <div class="ticket__row">${ICON('scissors')}<div><strong>${esc(r.service)}</strong><span>${duration(toMin(r.end) - toMin(r.start))}</span></div></div>
-        <div class="ticket__row">${ICON('cal')}<div><strong>${longDate(r.date)}</strong><span>de ${prettyTime(r.start)} a ${prettyTime(r.end)}</span></div></div>
-        <div class="ticket__row">${ICON('pin')}<div><strong>Calle del Cid, 12, bajo</strong><span>46980 Paterna</span></div></div>
-        <div class="ticket__code"><span class="muted">Código de reserva</span><strong>${r.code}</strong></div>
-      </div>
+      <article class="ticket" aria-label="Resguardo de la cita">
+        <header class="ticket__head">
+          <img src="/assets/logo-sello.png" alt="" width="150" height="150">
+          <div><span class="ticket__brand">Pentinats</span><strong>Miguel de la Cruz</strong></div>
+          <div class="ticket__code"><span>Código</span><strong>${r.code}</strong></div>
+        </header>
+        <div class="ticket__body">
+          <div class="ticket__row">${ICON('scissors')}<div><strong>${esc(r.service)}</strong><span>${duration(toMin(r.end) - toMin(r.start))}</span></div></div>
+          <div class="ticket__row">${ICON('cal')}<div><strong>${longDate(r.date)}</strong><span>de ${prettyTime(r.start)} a ${prettyTime(r.end)}</span></div></div>
+          <div class="ticket__row">${ICON('pin')}<div><strong>Calle del Cid, 12, bajo</strong><span>46980 Paterna</span></div></div>
+        </div>
+      </article>
       <div class="done__actions">
-        <button type="button" class="btn" data-ics>${ICON('cal')}Añadir al calendario</button>
-        <a class="btn btn--ghost" href="${link}">Ver o cancelar mi cita</a>
+        <a class="btn btn--gold" href="https://wa.me/?text=${encodeURIComponent(shareText(r))}" target="_blank" rel="noopener">${ICON('chat')}Enviármela por WhatsApp</a>
+        <button type="button" class="btn btn--ghost" data-ics>${ICON('cal')}Añadir al calendario</button>
+        <button type="button" class="btn btn--ghost" data-copy>${ICON('copy')}<span>Copiar enlace</span></button>
       </div>
+      <p class="done__link"><a href="${citaUrl(r)}">Ver o cancelar mi cita</a></p>
     </div>`;
+}
+
+function rangeLabel(a, b) {
+  const [ma, mb] = [monthLabel(a), monthLabel(b)];
+  if (ma === mb) return ma;
+  const ya = a.slice(0, 4);
+  const yb = b.slice(0, 4);
+  const name = (d) => monthLabel(d).replace(/ de \d{4}$/, '');
+  return ya === yb ? `${name(a)} – ${name(b).toLowerCase()} de ${yb}` : `${name(a)} ${ya} – ${name(b).toLowerCase()} ${yb}`;
 }
 
 /* ----- resumen ----- */
@@ -493,7 +569,7 @@ function renderSummary(step) {
 
   $('#summary').innerHTML = `
     <div class="summary__salon">
-      <img src="/assets/logo-pentinats.png" alt="" width="52" height="52">
+      <img src="/assets/logo-sello.png" alt="" width="52" height="52">
       <div><strong>Miguel de la Cruz</strong><span>Calle del Cid, 12 · Paterna</span></div>
     </div>
     <dl>
@@ -504,8 +580,9 @@ function renderSummary(step) {
       }
       ${when ? `<div><dt>${ICON('cal')}<span class="visually-hidden">Fecha</span></dt><dd><strong>${when}</strong><span>de ${prettyTime(state.time)} a ${end}</span></dd></div>` : ''}
     </dl>
-    ${step === 'done' || closed ? '' : `<button type="button" class="btn btn--block ${state.submitting ? 'is-loading' : ''}" data-next ${canNext ? '' : 'disabled'}>${label}</button>`}`;
+    ${step === 'done' || closed ? '' : `<button type="button" class="btn btn--gold btn--block ${state.submitting ? 'is-loading' : ''}" data-next ${canNext ? '' : 'disabled'}>${label}</button>`}`;
 
+  $('#summary').hidden = step === 'done' || closed;
   const foot = $('#booking-foot');
   foot.classList.toggle('is-hidden', step === 'done' || closed);
   $('#foot-summary').innerHTML = s
@@ -552,6 +629,19 @@ function bindStep(step) {
         $(`[data-time="${state.time}"]`, content)?.focus();
       })
     );
+    $('[data-all-times]', content)?.addEventListener('click', () => {
+      state.allTimes = true;
+      render();
+    });
+    $('[data-fallas]', content)?.addEventListener('click', () => {
+      const s = settings();
+      const start = addDays(s.fallasEnd, -13);
+      state.winStart = start > state.info.today ? start : state.info.today;
+      state.date = null;
+      state.slots = null;
+      state.time = null;
+      loadDays();
+    });
     $$('[data-win]', content).forEach((b) =>
       b.addEventListener('click', () => {
         state.winStart = addDays(state.winStart, b.dataset.win === 'next' ? WINDOW : -WINDOW);
@@ -581,17 +671,30 @@ function bindStep(step) {
   if (step === 'done') {
     $('[data-ics]', content).addEventListener('click', () => {
       const r = state.result;
-      const url = URL.createObjectURL(icsFor({ ...r, address: ADDRESS }));
+      const url = URL.createObjectURL(icsFor({ ...r, address: ADDRESS, link: citaUrl(r) }));
       const a = Object.assign(document.createElement('a'), { href: url, download: `cita-miguel-de-la-cruz-${r.date}.ics` });
       document.body.append(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     });
+    $('[data-copy]', content).addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const label = $('span', btn);
+      try {
+        await navigator.clipboard.writeText(citaUrl(state.result));
+        label.textContent = '¡Enlace copiado!';
+      } catch {
+        window.prompt('Copia este enlace:', citaUrl(state.result));
+      }
+      setTimeout(() => (label.textContent = 'Copiar enlace'), 2500);
+    });
   }
 }
 
-async function loadDays() {
+async function loadDays({ keep = false } = {}) {
+  const keepDate = keep ? state.date : null;
+  const keepTime = keep ? state.time : null;
   state.daysLoading = true;
   state.days = [];
   render();
@@ -600,6 +703,8 @@ async function loadDays() {
     const last = addDays(state.info.today, settings().maxDaysAhead);
     state.days = days.filter((d) => d.date <= last);
     state.daysLoading = false;
+    const kept = keepDate && state.days.find((d) => d.date === keepDate && d.free);
+    if (kept) return selectDate(kept.date, keepTime);
     const first = state.days.find((d) => d.free);
     if (first) return selectDate(first.date);
   } catch (e) {
@@ -609,15 +714,17 @@ async function loadDays() {
   render();
 }
 
-async function selectDate(date) {
+async function selectDate(date, keepTime = null) {
   state.date = date;
   state.time = null;
+  state.allTimes = false;
   state.slotsLoading = true;
   render();
   try {
     const { slots } = await api(`/api/slots?service=${state.serviceId}&date=${date}`);
     if (state.date !== date) return;
     state.slots = slots;
+    if (keepTime && slots.includes(keepTime)) state.time = keepTime;
   } catch (e) {
     state.error = e.message;
     state.slots = [];

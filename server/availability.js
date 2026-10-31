@@ -33,10 +33,25 @@ export async function busyRanges(db, date, opts) {
 
 const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1;
 
+/** Último día de las próximas Fallas (19 de marzo) a partir de `today`. */
+export function nextFallasEnd(today) {
+  const y = Number(today.slice(0, 4));
+  const thisYear = `${y}-03-19`;
+  return today <= thisYear ? thisYear : `${y + 1}-03-19`;
+}
+
+/**
+ * Días vista que se pueden reservar: el ajuste de Miguel, pero siempre
+ * como mínimo hasta el final de las próximas Fallas.
+ */
+export function effectiveMaxDays(settings, today) {
+  return Math.max(Number(settings.maxDaysAhead) || 0, daysBetween(today, nextFallasEnd(today)));
+}
+
 /** Horas de inicio libres (minutos del día), con la ocupación ya cargada. */
 export function computeSlots(settings, date, duration, busy, now = nowInMadrid()) {
   const delta = daysBetween(now.date, date);
-  if (delta < 0 || delta > settings.maxDaysAhead) return [];
+  if (delta < 0 || delta > effectiveMaxDays(settings, now.date)) return [];
   const step = Math.max(5, Number(settings.slotStep) || 15);
   // La antelación mínima cuenta desde ahora, aunque cruce la medianoche.
   const minStart = now.minutes + settings.minNoticeMinutes - delta * 1440;
@@ -62,7 +77,8 @@ export async function daySummary(db, settings, from, n, duration, now = nowInMad
   const out = [];
   for (let i = 0; i < n; i++) {
     const date = addDays(from, i);
-    const open = openIntervals(settings, date).length > 0;
+    // "open" = queda algún hueco posible ese día sin contar citas (si ya cerró hoy, cuenta como cerrado).
+    const open = openIntervals(settings, date).length > 0 && computeSlots(settings, date, duration, [], now).length > 0;
     out.push({ date, open, free: open ? computeSlots(settings, date, duration, busy.get(date) ?? [], now).length : 0 });
   }
   return out;

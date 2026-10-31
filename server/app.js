@@ -2,7 +2,7 @@
 // recibe un Request estándar y devuelve un Response.
 
 import { getSettings, saveSettings } from './db.js';
-import { daySummary, freeSlots, hasAnyHours, busyRanges, openIntervals } from './availability.js';
+import { daySummary, freeSlots, hasAnyHours, busyRanges, openIntervals, effectiveMaxDays, nextFallasEnd } from './availability.js';
 import { addDays, isValidDate, nowInMadrid, toHHMM, toMinutes } from './time.js';
 
 class HttpError extends Error {
@@ -71,7 +71,7 @@ function safeEqual(a, b) {
   return r === 0;
 }
 
-function publicSettings(s) {
+function publicSettings(s, today) {
   return {
     hours: s.hours,
     phone: s.phone,
@@ -80,7 +80,8 @@ function publicSettings(s) {
     instagram: s.instagram,
     address: s.address,
     city: s.city,
-    maxDaysAhead: s.maxDaysAhead,
+    maxDaysAhead: effectiveMaxDays(s, today),
+    fallasEnd: nextFallasEnd(today),
     minNoticeMinutes: s.minNoticeMinutes,
     bookingNote: s.bookingNote,
     bookingOpen: hasAnyHours(s),
@@ -304,7 +305,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
         db.all('SELECT * FROM services WHERE active = 1 ORDER BY sort, id'),
       ]);
       const n = now();
-      return json(200, { settings: publicSettings(settings), services: services.map(serviceRow), today: n.date, nowMinutes: n.minutes });
+      return json(200, { settings: publicSettings(settings, n.date), services: services.map(serviceRow), today: n.date, nowMinutes: n.minutes });
     }
 
     if (m === 'GET' && path === '/api/days') {
