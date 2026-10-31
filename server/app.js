@@ -354,7 +354,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     /* ----- administración ----- */
 
     if (m === 'POST' && path === '/api/admin/login') {
-      if (!auth.enabled) throw new HttpError(503, 'El panel no está activado: falta configurar ADMIN_PASSWORD en el servidor.');
+      if (!auth.enabled) throw new HttpError(503, 'El panel no está activado: falta el secreto ADMIN_PASSWORD (en Cloudflare: Configuración → Variables y secretos, tipo Secreto, entorno Producción).');
       if (!loginLimiter(ip)) throw new HttpError(429, 'Demasiados intentos. Espera unos minutos.');
       const body = await readJson(req);
       if (!(await auth.checkPassword(body.password))) throw new HttpError(401, 'Contraseña incorrecta.');

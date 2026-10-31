@@ -48,7 +48,7 @@ async function start() {
   try {
     const s = await api('/api/admin/session');
     if (!s.enabled) {
-      showLogin('El panel está desactivado: hay que definir la variable ADMIN_PASSWORD en el servidor.');
+      showLogin('El panel está desactivado: falta el secreto ADMIN_PASSWORD (en Cloudflare: Configuración → Variables y secretos, tipo Secreto, entorno Producción).');
       return;
     }
     if (!s.loggedIn) return showLogin();

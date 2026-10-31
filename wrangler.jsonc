@@ -4,6 +4,8 @@
   "name": "miguel-peluquer-a",
   "main": "worker.js",
   "compatibility_date": "2026-10-01",
+  // Conserva las variables y secretos creados en el panel de Cloudflare en cada despliegue.
+  "keep_vars": true,
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
