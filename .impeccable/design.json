@@ -1,7 +1,35 @@
 {
   "source": "DESIGN.md",
-  "colors": { "bg": "#ffffff", "surface": "#f6f5f3", "surface2": "#eeece9", "ink": "#161314", "ink2": "#3b3537", "muted": "#6a6264", "line": "#e5e1de", "lineStrong": "#cfc9c5", "gold": "#b48b3c", "goldInk": "#7d5f22", "goldSoft": "#f6efe1", "ok": "#1f7a4d", "danger": "#b3261e" },
-  "fonts": { "body": "Figtree", "display": "Figtree" },
-  "radius": { "s": 8, "m": 12, "l": 20, "pill": 999 },
+  "colors": {
+    "bg": "#ffffff",
+    "surface": "#f6f5f3",
+    "surface2": "#eeece9",
+    "ink": "#161314",
+    "ink2": "#3b3537",
+    "muted": "#6a6264",
+    "line": "#e5e1de",
+    "lineStrong": "#cfc9c5",
+    "gold": "#b48b3c",
+    "goldInk": "#7d5f22",
+    "goldSoft": "#f6efe1",
+    "ok": "#1f7a4d",
+    "danger": "#b3261e",
+    "night": "#100d0c",
+    "night2": "#1c1715",
+    "nightLine": "#3a302b",
+    "ivory": "#f4eee5",
+    "ivory2": "#c9bfb2",
+    "goldBright": "#d4b06a"
+  },
+  "fonts": {
+    "body": "Figtree",
+    "display": "Bodoni Moda"
+  },
+  "radius": {
+    "s": 8,
+    "m": 12,
+    "l": 20,
+    "pill": 999
+  },
   "ease": "cubic-bezier(0.16, 1, 0.3, 1)"
 }

@@ -177,15 +177,32 @@ function renderContact() {
 }
 
 function setupTopbar() {
+  // El botón "Reservar" de la barra y el del pie en móvil aparecen al dejar atrás los de la portada.
   const bar = $('#topbar');
-  const target = $('.profile__logo');
-  const io = new IntersectionObserver(([en]) => bar.classList.toggle('is-scrolled', !en.isIntersecting), {
-    rootMargin: '-64px 0px 0px 0px',
-  });
-  io.observe(target);
+  const cta = $('#mobile-cta');
+  const io = new IntersectionObserver(
+    ([en]) => {
+      bar.classList.toggle('is-scrolled', !en.isIntersecting);
+      cta.classList.toggle('is-on', !en.isIntersecting);
+    },
+    { rootMargin: '-64px 0px 0px 0px' }
+  );
+  io.observe($('.hero__actions'));
 }
 
 document.addEventListener('click', (e) => {
+  const c = e.target.closest('[data-book-cat]');
+  if (c) {
+    const list = state.services.filter((s) => s.category === c.dataset.bookCat);
+    if (list.length === 1) return openBooking(list[0].id);
+    state.step = 'service';
+    openBooking();
+    if (state.step === 'service') {
+      const head = $$('.pick-group h3', content).find((h) => h.textContent === c.dataset.bookCat);
+      head?.scrollIntoView({ block: 'start' });
+    }
+    return;
+  }
   const b = e.target.closest('[data-book]');
   if (!b || b.closest('dialog')) return;
   const id = Number(b.dataset.book);
