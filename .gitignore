@@ -1,0 +1,7 @@
+node_modules/
+data/*.db
+data/*.db-*
+.env
+.impeccable/review/
+.impeccable/questions/
+.impeccable/config.local.json

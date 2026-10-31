@@ -1,0 +1,14 @@
+{
+  "name": "miguel-de-la-cruz-reservas",
+  "version": "1.0.0",
+  "description": "Web y agenda de reservas de Miguel de la Cruz · Pentinats (Paterna)",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server.js",
+    "demo": "node --disable-warning=ExperimentalWarning scripts/demo-seed.js",
+    "test": "node --disable-warning=ExperimentalWarning --test"
+  }
+}
