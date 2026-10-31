@@ -393,10 +393,26 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     }
 
     if (m === 'POST' && path === '/api/bookings') {
-      if (!bookingLimiter(ip)) throw new HttpError(429, 'Demasiadas reservas seguidas. Inténtalo más tarde.');
       const body = await readJson(req);
+      // Cambio de hora: la cita anterior (con su enlace privado) aporta el teléfono y se cancela
+      // solo después de guardar la nueva. No cuenta para el límite de reservas.
+      let old = null;
+      if (body.replaces && typeof body.replaces === 'object') {
+        old = await db.get("SELECT * FROM bookings WHERE code = ? AND status = 'confirmed'", str(body.replaces.code, 6).toUpperCase());
+        if (!old || !safeEqual(old.token, String(body.replaces.token || ''))) throw new HttpError(404, 'No encontramos la cita que quieres cambiar.');
+        if (!cleanPhone(body.phone)) body.phone = old.phone;
+        if (!str(body.email)) body.email = old.email;
+      }
+      if (!old && !bookingLimiter(ip)) {
+        throw new HttpError(429, 'Has hecho varias reservas seguidas. Espera un rato o escribe a Miguel por Instagram (@peinados.migueldelacruz).');
+      }
       if (str(body.website)) return json(201, { ok: true }); // trampa anti-spam
-      return json(201, await createBooking(body, { source: 'web' }));
+      const created = await createBooking(body, { source: 'web' });
+      if (old) {
+        await db.run("UPDATE bookings SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ? AND status = 'confirmed'", old.id);
+        created.replaced = { ok: true, code: old.code };
+      }
+      return json(201, created);
     }
 
     if (m === 'GET' && (mm = path.match(/^\/api\/bookings\/([A-Z0-9]{6})$/))) {

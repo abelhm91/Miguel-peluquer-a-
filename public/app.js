@@ -91,10 +91,11 @@ async function boot() {
       const old = await api(`/api/bookings/${encodeURIComponent(q.get('cambiar'))}?t=${encodeURIComponent(q.get('t'))}`);
       const main = svcById(old.party?.[0]?.serviceId ?? old.serviceId);
       if (old.status === 'confirmed' && main) {
-        state.reschedule = { code: old.code, token: q.get('t'), when: `${longDate(old.date).toLowerCase()} a las ${prettyTime(old.start)}` };
+        state.reschedule = { code: old.code, token: q.get('t'), date: old.date, when: `${longDate(old.date).toLowerCase()} a las ${prettyTime(old.start)}` };
         state.extra = (old.party || []).slice(1).filter((p) => svcById(p.serviceId)).map((p) => ({ serviceId: p.serviceId, name: p.name }));
-        openBooking(main.id);
+        openBooking(main.id, { date: old.date >= state.info.today ? old.date : null });
         state.form.name = old.party?.[0]?.name || old.name;
+        state.form.phone = ''; // se mantiene el de la cita (lo pone el servidor)
         render();
         return;
       }
@@ -141,8 +142,7 @@ function svcRow(sv) {
 /* Celebraciones por momentos: cada momento enlaza con los servicios que le corresponden. */
 const MOMENTS = [
   { title: 'La novia', text: 'El peinado o recogido del gran día. Cuéntale a Miguel la fecha de la boda en las notas.', match: /novia/i },
-  { title: 'Invitadas', text: 'Para la boda, el bautizo o la cena: un peinado o un recogido que aguante toda la fiesta.', match: /^(peinado|recogido)$/i },
-  { title: 'Comuniones', text: 'Para la niña de la comunión y para la familia.', match: /^(peinado|recogido)$/i },
+  { title: 'Invitadas y comuniones', text: 'Para la boda, la comunión, el bautizo o la cena: un peinado o un recogido que aguante toda la fiesta.', match: /^(peinado|recogido)$/i },
 ];
 
 function renderMoments() {
@@ -159,7 +159,7 @@ function renderMoments() {
         <div>
           <p>${m.text}</p>
           <div class="moment__actions">${list
-            .map((sv) => `<button class="btn btn--ghost btn--small" type="button" data-book="${sv.id}">Reservar ${esc(sv.name.toLowerCase())} · ${duration(sv.duration)}</button>`)
+            .map((sv) => `<button class="btn btn--ghost btn--small" type="button" data-book="${sv.id}">Reservar ${esc(/^novia$/i.test(sv.name) ? 'peinado de novia' : sv.name.toLowerCase())} · ${duration(sv.duration)}</button>`)
             .join('')}</div>
         </div>
       </article>`;
@@ -189,7 +189,7 @@ function renderServices() {
 
 /* ---------- capítulo de Fallas: cuenta atrás y días con huecos ---------- */
 
-const FALLAS_DAYS = { 15: 'Plantà', 16: 'Fallas', 17: 'Ofrenda', 18: 'Ofrenda', 19: 'Cremà' };
+const FALLAS_DAYS = { 15: 'Plantà', 16: '', 17: 'Ofrenda', 18: 'Ofrenda', 19: 'Cremà' };
 /** Disponibilidad en palabras: el número de horas de inicio se malinterpreta como plazas. */
 const freeLabel = (d) => (!d.open ? 'Cerrado' : !d.free ? 'Completo' : d.free <= 4 ? 'Pocas horas' : 'Libre');
 
@@ -236,6 +236,15 @@ async function renderFallas() {
         const n = Number(d.date.slice(8));
         const label = FALLAS_DAYS[n] || '';
         const state_ = freeLabel(d);
+        if (d.open && !d.free) {
+          return `<li><a class="fday fday--full" href="https://ig.me/m/${esc(settings().instagram)}" target="_blank" rel="noopener"
+            aria-label="${longDate(d.date)}${label ? `, ${label.toLowerCase()}` : ''}: completo. Escribir a Miguel por Instagram">
+            <span class="fday__dow">${dow(d.date)}</span>
+            <span class="fday__num">${n}</span>
+            <span class="fday__tag">${label || '&nbsp;'}</span>
+            <span class="fday__free">Completo<span class="fday__sep"> · </span><u>escríbele</u></span>
+          </a></li>`;
+        }
         return `<li><button type="button" class="fday" data-fallas-date="${d.date}" ${d.free ? '' : 'disabled'}
           aria-label="${longDate(d.date)}${label ? `, ${label.toLowerCase()}` : ''}: ${state_}">
           <span class="fday__dow">${dow(d.date)}</span>
@@ -341,11 +350,12 @@ function setupTopbar() {
   const io = new IntersectionObserver(
     ([en]) => {
       bar.classList.toggle('is-scrolled', !en.isIntersecting);
-      cta.classList.toggle('is-on', !en.isIntersecting);
     },
     { rootMargin: '-64px 0px 0px 0px' }
   );
   io.observe($('.fallas__actions'));
+  const io2 = new IntersectionObserver(([en]) => cta.classList.toggle('is-on', !en.isIntersecting), { rootMargin: '-64px 0px 0px 0px' });
+  io2.observe($('#fallas'));
 }
 
 document.addEventListener('click', (e) => {
@@ -390,8 +400,8 @@ function openBooking(serviceId = null, { date = null, fallas = false } = {}) {
     state.winStart = state.info.today;
     const s = settings();
     if (date || fallas) {
-      // Abre directamente en los días de Fallas (o en el día elegido).
-      const start = addDays(s.fallasEnd, -13);
+      // Abre directamente en el día elegido (o en los días de Fallas).
+      const start = date ? addDays(date, -3) : addDays(s.fallasEnd, -13);
       state.winStart = start > state.info.today ? start : state.info.today;
       state.date = date;
       state.pendingPrefer = date ? null : addDays(s.fallasEnd, -4);
@@ -519,33 +529,44 @@ function closedView() {
     </div>`;
 }
 
+/* Los servicios en la reserva siguen los capítulos de la portada (la temporada de Miguel). */
+const CHAPTERS = [
+  { title: 'Fallas', cats: ['Falleras'], night: true },
+  { title: 'Bodas, comuniones y celebraciones', cats: ['Peinados y recogidos'] },
+  { title: 'Todo el año', cats: null }, // el resto
+];
+
 function serviceView() {
-  const all = groups();
-  const gs = state.filterCat ? all.filter(([cat]) => cat === state.filterCat) : all;
-  const focus = state.filterCat && gs.length
-    ? `<div class="pick-focus"><p class="booking__lede">Elige el peinado de ${esc(state.filterCat.toLowerCase().replace(/s$/, ''))}:</p></div>`
-    : '';
-  const more = state.filterCat && gs.length ? `<button type="button" class="link-btn" data-all-services>Ver todos los servicios</button>` : '';
-  return focus + (gs.length ? gs : all)
-    .map(
-      ([cat, list]) => `
-      <div class="pick-group">
-        <h3>${esc(cat)}</h3>
-        <ul class="pick-list">
-          ${list
-            .map(
-              (s) => `
-            <li><button type="button" class="pick" data-service="${s.id}" aria-pressed="${s.id === state.serviceId}">
-              <span class="pick__name">${esc(s.name)}</span>
-              <span class="pick__meta">${duration(s.duration)}${s.price ? ` · ${esc(s.price)}` : ''}</span>
-              <span class="pick__tick">${ICON('check')}</span>
-            </button></li>`
-            )
-            .join('')}
-        </ul>
-      </div>`
-    )
-    .join('') + more;
+  const pickBtn = (sv) => `
+    <li><button type="button" class="pick" data-service="${sv.id}" aria-pressed="${sv.id === state.serviceId}">
+      <span class="pick__name">${esc(sv.name)}</span>
+      <span class="pick__meta">${duration(sv.duration)}${sv.price ? ` · ${esc(sv.price)}` : ''}</span>
+      <span class="pick__tick">${ICON('check')}</span>
+    </button></li>`;
+  const named = CHAPTERS.flatMap((c) => c.cats || []);
+  let chapters = CHAPTERS.map((c) => ({
+    ...c,
+    list: state.services.filter((sv) => (c.cats ? c.cats.includes(sv.category) : !named.includes(sv.category))),
+  })).filter((c) => c.list.length);
+  if (state.filterCat) {
+    const only = chapters.filter((c) => c.cats?.includes(state.filterCat));
+    if (only.length) chapters = only;
+  }
+  const focus = state.filterCat ? `<p class="booking__lede pick-focus">Elige tu peinado de fallera:</p>` : '';
+  const more = state.filterCat ? `<button type="button" class="link-btn" data-all-services>Ver todos los servicios</button>` : '';
+  return (
+    focus +
+    chapters
+      .map(
+        (c) => `
+      <section class="pick-group${c.night ? ' pick-group--night' : ''}">
+        <h3>${esc(c.title)}</h3>
+        <ul class="pick-list">${c.list.map(pickBtn).join('')}</ul>
+      </section>`
+      )
+      .join('') +
+    more
+  );
 }
 
 function timeView() {
@@ -569,12 +590,13 @@ function timeView() {
         const disabled = !d.free;
         const worksToday = d.date === today && (s.hours[weekday(d.date)] || []).length > 0;
         const isFallas = isFalleraBooking && d.date >= fallasFrom && d.date <= s.fallasEnd;
-        const note = !d.open ? (worksToday ? 'Ya cerrado' : 'Cerrado') : !d.free ? 'Completo' : d.date === today ? 'Hoy' : isFallas ? 'Fallas' : '';
+        const act = isFallas ? FALLAS_DAYS[Number(d.date.slice(8))] : '';
+        const note = !d.open ? 'Cerrado' : !d.free ? 'Completo' : d.date === today ? 'Hoy' : act || '';
         return `<button type="button" class="day${isFallas ? ' day--fallas' : ''}" data-date="${d.date}" aria-pressed="${d.date === state.date}" ${disabled ? 'disabled' : ''}
           aria-label="${longDate(d.date)}${disabled ? `, ${note.toLowerCase()}` : ''}">
           <span class="day__dow">${dow(d.date)}</span>
           <span class="day__num">${dayNum(d.date)}</span>
-          <span class="day__note${isFallas && d.free ? ' day__note--fallas' : ''}">${note || '&nbsp;'}</span>
+          <span class="day__note${act && d.free ? ' day__note--fallas' : ''}">${note || '&nbsp;'}</span>
         </button>`;
       })
       .join('');
@@ -699,8 +721,8 @@ function detailsView() {
         .join('')}
       <div class="field">
         <label for="f-phone">Teléfono</label>
-        <input class="input" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required value="${esc(f.phone)}" placeholder="600 000 000">
-        <span class="hint">Miguel te llamará a este número si hay algún cambio.</span>
+        <input class="input" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" ${state.reschedule ? '' : 'required'} value="${esc(f.phone)}" placeholder="${state.reschedule ? 'El mismo de tu cita' : '600 000 000'}">
+        <span class="hint">${state.reschedule ? 'Déjalo vacío para mantener el teléfono de tu cita, o escribe uno nuevo.' : 'Miguel te llamará a este número si hay algún cambio.'}</span>
       </div>
       <div class="field">
         <label for="f-email">Correo electrónico <span class="muted">(opcional, por si Miguel necesita escribirte)</span></label>
@@ -792,7 +814,8 @@ function renderSummary(step) {
 
   $('#summary').innerHTML = `
     <div class="summary__salon">
-      <div><strong>Miguel de la Cruz</strong><span>Calle del Cid, 12 · Paterna</span></div>
+      <img src="/assets/logo-sello.png" alt="" width="52" height="52">
+      <div><span class="summary__brand">Pentinats</span><strong>Miguel de la Cruz</strong><span>Calle del Cid, 12 · Paterna</span></div>
     </div>
     <dl>
       ${
@@ -808,7 +831,7 @@ function renderSummary(step) {
   const foot = $('#booking-foot');
   foot.classList.toggle('is-hidden', step === 'done' || closed);
   $('#foot-summary').innerHTML = s
-    ? `<strong>${esc(svcLabel)}</strong><span>${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(totalMin())}</span>`
+    ? `<strong>${esc(s.name)}${state.extra.length ? ' y más' : ''}</strong><span>${state.extra.length ? `${peopleCount()} personas · ` : ''}${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(totalMin())}</span>`
     : `<span>Elige un servicio</span>`;
   const fb = $('#foot-next');
   fb.textContent = label;
@@ -963,7 +986,9 @@ async function loadDays({ keep = false, prefer = null, peopleChange = false } = 
     if (kept) return selectDate(kept.date, keepTime);
     const first = (prefer && state.days.find((d) => d.free && d.date >= prefer)) || state.days.find((d) => d.free);
     state.notice =
-      peopleChange && keepDate && first && first.date !== keepDate
+      prefer && first && first.date !== prefer && !peopleChange
+        ? `El ${longDate(prefer).toLowerCase()} ya no tiene hueco para esta cita: te mostramos el ${longDate(first.date).toLowerCase()}. Si lo necesitas ese día, escribe a Miguel por Instagram.`
+        : peopleChange && keepDate && first && first.date !== keepDate
         ? `El ${longDate(keepDate).toLowerCase()} ya no tiene hueco para ${peopleCount()} ${peopleCount() === 1 ? 'persona' : 'personas'} seguidas: te mostramos el ${longDate(first.date).toLowerCase()}.`
         : '';
     if (first) return selectDate(first.date);
@@ -1002,7 +1027,8 @@ async function submit() {
   const phone = $('#f-phone');
   const email = $('#f-email');
   if (f.name.trim().length < 2) problems.push([name, 'Escribe tu nombre.']);
-  if (f.phone.replace(/\D/g, '').length < 9) problems.push([phone, 'Escribe un teléfono de al menos 9 cifras.']);
+  const keepPhone = state.reschedule && !f.phone.trim();
+  if (!keepPhone && f.phone.replace(/\D/g, '').length < 9) problems.push([phone, 'Escribe un teléfono de al menos 9 cifras.']);
   if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) problems.push([email, 'Revisa el correo electrónico.']);
   $$('.field .error', form).forEach((n) => n.remove());
   if (problems.length) {
@@ -1030,19 +1056,12 @@ async function submit() {
         email: f.email,
         notes: f.notes,
         extra: state.extra.map((e) => ({ serviceId: e.serviceId, name: e.name || '' })),
+        replaces: state.reschedule ? { code: state.reschedule.code, token: state.reschedule.token } : undefined,
         website: form.website.value,
       },
     });
-    store.set('pentinats:cliente', { name: f.name, phone: f.phone, email: f.email });
-    if (state.reschedule) {
-      try {
-        await api(`/api/bookings/${state.reschedule.code}/cancel`, { method: 'POST', body: { token: state.reschedule.token } });
-        r.replaced = { ok: true, code: state.reschedule.code };
-      } catch {
-        r.replaced = { ok: false, code: state.reschedule.code };
-      }
-      state.reschedule = null;
-    }
+    if (f.phone) store.set('pentinats:cliente', { name: f.name, phone: f.phone, email: f.email });
+    state.reschedule = null;
     state.result = r;
     state.submitting = false;
     state.extra = [];

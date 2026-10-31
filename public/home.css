@@ -674,3 +674,206 @@
     height: 52px;
   }
 }
+
+/* ---------- quinta ronda: ajustes de móvil y reserva con la temporada ---------- */
+
+/* días completos en la portada: llevan a escribir a Miguel */
+.fday--full {
+  text-decoration: none;
+  border-color: var(--night-line);
+  color: #a99d94;
+}
+
+.fday--full .fday__free {
+  color: var(--ivory-2);
+}
+
+.fday--full .fday__free u {
+  color: var(--gold-bright);
+  text-underline-offset: 0.2em;
+}
+
+.fday--full:hover {
+  border-color: var(--gold-bright);
+}
+
+/* "Para 1 persona · Añadir otra persona" no se parte a trozos */
+.people--compact {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.people--compact > span,
+.people--compact .link-btn {
+  white-space: nowrap;
+}
+
+/* el usuario de Instagram puede partirse en pantallas estrechas */
+.insta-card > span {
+  min-width: 0;
+}
+
+.insta-card > span span {
+  overflow-wrap: anywhere;
+}
+
+/* la tira de días no sobresale de su columna */
+.days {
+  margin: 12px 0 0;
+}
+
+/* resumen inferior: servicio en una línea */
+.booking__foot-summary strong {
+  -webkit-line-clamp: 1 !important;
+}
+
+/* la elección de servicio sigue los capítulos de la portada */
+.pick-group--night {
+  margin: 0 0 8px;
+  padding: 18px;
+  border-radius: var(--radius-l);
+  background: var(--night);
+  color: var(--ivory);
+}
+
+.pick-group--night h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--gold-bright);
+}
+
+.pick-group--night .pick {
+  background: var(--night-2);
+  border-color: var(--night-line);
+  color: var(--ivory);
+}
+
+.pick-group--night .pick:hover,
+.pick-group--night .pick[aria-pressed='true'] {
+  border-color: var(--gold-bright);
+  box-shadow: inset 0 0 0 1px var(--gold-bright);
+}
+
+.pick-group--night .pick__meta {
+  color: var(--ivory-2);
+}
+
+.pick-group--night .pick[aria-pressed='true'] .pick__tick {
+  background: var(--gold-bright);
+  border-color: var(--gold-bright);
+  color: var(--night);
+}
+
+.pick-group h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* resumen de escritorio con la marca */
+.summary__salon img {
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(212 176 106 / 0.6);
+}
+
+.summary__brand {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-ink) !important;
+}
+
+/* menú de capítulos también en móvil, como segunda fila deslizable */
+@media (max-width: 760px) {
+  .topbar__inner {
+    flex-wrap: wrap;
+    row-gap: 0;
+    padding-bottom: 0;
+  }
+
+  .topnav {
+    display: flex;
+    order: 3;
+    flex-basis: 100%;
+    margin: 0 calc(var(--gutter) * -1);
+    padding: 0 var(--gutter) 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topnav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topnav a {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px 0 0;
+    font-size: 0.9375rem;
+  }
+
+  html {
+    scroll-padding-top: 120px;
+  }
+}
+
+/* los botones de los momentos pueden ocupar dos líneas en móviles estrechos */
+.moment__actions .btn {
+  white-space: normal;
+  text-align: left;
+  height: auto;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  line-height: 1.25;
+}
+
+.moment > * {
+  min-width: 0;
+}
+
+/* en los recuadros de escritorio, "escríbele" va en su propia línea */
+@media (min-width: 601px) {
+  .fday--full .fday__free {
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  .fday--full .fday__free u {
+    display: block;
+  }
+}
+
+@media (min-width: 601px) {
+  .fday__sep {
+    display: none;
+  }
+}
+
+/* la columna del capítulo de Fallas nunca se ensancha por su contenido */
+.fallas__text,
+.fallas__picker,
+.fallas__days,
+.fallas__days li {
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .fday--full .fday__free {
+    white-space: normal;
+    text-align: right;
+    line-height: 1.2;
+  }
+
+  .fday--full .fday__sep {
+    display: none;
+  }
+
+  .fday--full .fday__free u {
+    display: block;
+  }
+}

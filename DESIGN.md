@@ -26,7 +26,7 @@ En la reserva, «¿Para cuántas personas?» es una sola línea («Para 1 person
 | Sombras | `--shadow-1`, `--shadow-2` | Siempre con desplazamiento y desenfoque suave |
 | Movimiento | `--ease-out: cubic-bezier(0.16,1,0.3,1)`, 140–320 ms | Entrada del flujo, aparición del botón superior y confirmación con un pequeño «pop» |
 
-Tipografía: **Jost** (400–700), sans-serif geométrica de la familia de Futura, para display —nombre, títulos de sección, especialidades, cita de «Sobre Miguel», categorías y la marca «PENTINATS» en mayúsculas espaciadas— (elegida por el dueño: quería títulos en sans geométrica); **Figtree** (400–800) para texto, controles y cifras tabulares.
+Tipografía: **Jost** (se cargan 400–600; los títulos usan 600), sans-serif geométrica de la familia de Futura, para display —nombre, títulos de sección, especialidades, cita de «Sobre Miguel», categorías y la marca «PENTINATS» en mayúsculas espaciadas— (elegida por el dueño: quería títulos en sans geométrica); **Figtree** (400–700) para texto, controles y cifras tabulares.
 
 ## Componentes
 

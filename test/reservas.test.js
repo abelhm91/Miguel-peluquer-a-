@@ -180,6 +180,19 @@ test('grupo con servicios distintos: orden, horas y nombres', async () => {
   assert.equal(view.data.serviceId, adult.id);
 });
 
+test('cambiar la hora: reutiliza el teléfono y cancela la anterior después', async () => {
+  const { call } = await setup();
+  const svc = (await call('/api/info')).data.services.find((x) => x.name === 'Trenzas');
+  const a = await call('/api/bookings', { method: 'POST', body: { serviceId: svc.id, date: MONDAY, time: '09:00', name: 'Amparo', phone: '600112233' } });
+  const bad = await call('/api/bookings', { method: 'POST', body: { serviceId: svc.id, date: MONDAY, time: '16:00', name: 'Amparo', replaces: { code: a.data.code, token: 'x' } } });
+  assert.equal(bad.status, 404);
+  const b = await call('/api/bookings', { method: 'POST', body: { serviceId: svc.id, date: MONDAY, time: '16:00', name: 'Amparo', replaces: { code: a.data.code, token: a.data.token } } });
+  assert.equal(b.status, 201, 'sin teléfono: usa el de la cita anterior');
+  assert.deepEqual(b.data.replaced, { ok: true, code: a.data.code });
+  const old = await call(`/api/bookings/${a.data.code}?t=${a.data.token}`);
+  assert.equal(old.data.status, 'cancelled');
+});
+
 test('hora de Madrid', () => {
   assert.deepEqual(nowInMadrid(new Date('2030-07-01T22:30:00Z')), { date: '2030-07-02', minutes: 30 });
 });
