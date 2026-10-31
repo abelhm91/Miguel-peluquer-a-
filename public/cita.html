@@ -17,6 +17,9 @@
     .status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-weight: 600; font-size: 0.875rem; }
     .status--ok { background: var(--ok-soft); color: var(--ok); }
     .status--off { background: var(--danger-soft); color: var(--danger); }
+    .cancel-box { display: grid; gap: 10px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .cancel-box h2 { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; }
+    .cancel-ask { flex-basis: 100%; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -24,6 +27,8 @@
     <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
     <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
     <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="17.5" r="2.5"/><path d="M8.6 8 20 18M8.6 16 20 6"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 19.5 5.3 16A8 8 0 1 1 8 18.7Z"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><path d="M12 3 21 12l-9 9-9-9Z"/><path d="M10 13.5V11h4M12.5 9l1.8 2-1.8 2"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
   </svg>
@@ -37,12 +42,19 @@
     <div class="skeleton" style="height:220px"></div>
   </main>
   <script type="module">
-    import { $, esc, api, fullDate, prettyTime, toMin, duration } from '/shared.js';
+    import { $, esc, api, fullDate, prettyTime, partyRows, icsFor } from '/shared.js';
     const ICON = (id) => `<svg class="icon" aria-hidden="true"><use href="#i-${id}"/></svg>`;
     const q = new URLSearchParams(location.search);
     const code = (q.get('c') || '').toUpperCase();
     const token = q.get('t') || '';
     const page = $('#page');
+
+    function shareText(b) {
+      const who = b.party?.length
+        ? b.party.map((p) => `${prettyTime(p.start)} ${p.name} (${p.service})`).join(', ')
+        : `${prettyTime(b.start)} ${b.name} (${b.service})`;
+      return `Cita con Miguel de la Cruz (Pentinats), ${fullDate(b.date).toLowerCase()}: ${who}. Calle del Cid, 12, Paterna. Código ${b.code}. Ver o cancelar: ${location.href}`;
+    }
 
     function view(b, msg = '') {
       const active = b.status === 'confirmed';
@@ -59,26 +71,53 @@
             <div class="ticket__code"><span>Código</span><strong>${esc(b.code)}</strong></div>
           </header>
           <div class="ticket__body">
-            <div class="ticket__row">${ICON('user')}<div><strong>${esc(b.name)}</strong><span>Titular de la cita</span></div></div>
-            <div class="ticket__row">${ICON('scissors')}<div><strong>${esc(b.service)}</strong><span>${duration(toMin(b.end) - toMin(b.start))}</span></div></div>
+            ${partyRows(b)}
             <div class="ticket__row">${ICON('cal')}<div><strong>${fullDate(b.date)}</strong><span>de ${prettyTime(b.start)} a ${prettyTime(b.end)}</span></div></div>
             <div class="ticket__row">${ICON('pin')}<div><strong>Calle del Cid, 12, bajo</strong><span>46980 Paterna</span></div></div>
           </div>
         </article>
-        <div class="done__actions">
-          ${active ? `<button class="btn btn--danger" id="cancel">Cancelar la cita</button>` : `<a class="btn" href="/#reservar">Reservar otra cita</a>`}
-          <a class="btn btn--ghost" href="/">Volver a la web</a>
-        </div>`;
-      $('#cancel')?.addEventListener('click', async (e) => {
-        if (!confirm('¿Seguro que quieres cancelar la cita? El hueco quedará libre para otra persona.')) return;
-        e.target.classList.add('is-loading');
-        try {
-          const nb = await api(`/api/bookings/${code}/cancel`, { method: 'POST', body: { token } });
-          view(nb, 'Hemos cancelado tu cita. Gracias por avisar.');
-        } catch (err) {
-          e.target.classList.remove('is-loading');
-          alert(err.message);
-        }
+        ${
+          active
+            ? `<div class="done__actions">
+          <a class="btn btn--gold" href="https://wa.me/?text=${encodeURIComponent(shareText(b))}" target="_blank" rel="noopener">${ICON('chat')}Enviármela por WhatsApp</a>
+          <button type="button" class="btn btn--ghost" id="ics">${ICON('cal')}Añadir al calendario</button>
+          <a class="btn btn--ghost" href="https://www.google.com/maps/dir/?api=1&destination=Calle+del+Cid+12+Paterna" target="_blank" rel="noopener">${ICON('route')}Cómo llegar</a>
+        </div>
+        <section class="cancel-box" aria-labelledby="cancel-h">
+          <h2 id="cancel-h">¿No puedes venir?</h2>
+          <p class="muted">Cancela para dejar el hueco libre a otra persona. Para cambiar la hora, cancela y vuelve a reservar, o escribe a Miguel por <a href="https://ig.me/m/peinados.migueldelacruz" target="_blank" rel="noopener">Instagram</a>.</p>
+          <div class="done__actions" id="cancel-actions">
+            <button type="button" class="btn btn--danger" id="cancel">Cancelar la cita</button>
+          </div>
+        </section>`
+            : `<div class="done__actions"><a class="btn btn--gold" href="/#reservar">Reservar otra cita</a><a class="btn btn--ghost" href="/">Volver a la web</a></div>`
+        }`;
+      $('#ics')?.addEventListener('click', () => {
+        const url = URL.createObjectURL(icsFor({ ...b, address: 'Calle del Cid, 12, bajo, 46980 Paterna, Valencia', link: location.href }));
+        const a = Object.assign(document.createElement('a'), { href: url, download: `cita-miguel-de-la-cruz-${b.date}.ics` });
+        document.body.append(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      });
+      // Cancelar en dos pasos, dentro de la página (sin ventanas del navegador).
+      $('#cancel')?.addEventListener('click', () => {
+        $('#cancel-actions').innerHTML = `
+          <p class="cancel-ask">¿Seguro que quieres cancelarla?</p>
+          <button type="button" class="btn btn--danger" id="cancel-yes">Sí, cancelar la cita</button>
+          <button type="button" class="btn btn--ghost" id="cancel-no">No, mantenerla</button>`;
+        $('#cancel-no').addEventListener('click', () => view(b));
+        $('#cancel-yes').addEventListener('click', async (e) => {
+          e.currentTarget.classList.add('is-loading');
+          try {
+            const nb = await api(`/api/bookings/${code}/cancel`, { method: 'POST', body: { token } });
+            view(nb, 'Hemos cancelado tu cita. Gracias por avisar.');
+          } catch (err) {
+            view(b, '');
+            page.insertAdjacentHTML('afterbegin', `<div class="alert" role="alert">${ICON('info')}<span>${esc(err.message)}</span></div>`);
+          }
+        });
+        $('#cancel-yes').focus();
       });
     }
 

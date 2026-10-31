@@ -157,6 +157,27 @@ test('reserva seguida para varias personas', async () => {
   assert.ok(!one.includes('10:00') && one.includes('11:00'), 'ocupa las dos horas seguidas');
 });
 
+test('grupo con servicios distintos: orden, horas y nombres', async () => {
+  const { call } = await setup();
+  const svcs = (await call('/api/info')).data.services;
+  const adult = svcs.find((x) => x.name === 'Peinado de fallera'); // 90
+  const kid = svcs.find((x) => x.name === 'Peinado de fallera infantil'); // 60
+  const slots = (await call(`/api/slots?service=${adult.id}&date=${MONDAY}&extra=${kid.id}`)).data.slots;
+  assert.ok(slots.includes('11:30') && !slots.includes('12:00'), '150 min caben hasta las 11:30');
+  const r = await call('/api/bookings', {
+    method: 'POST',
+    body: { serviceId: adult.id, date: MONDAY, time: '09:00', name: 'Amparo', phone: '600112233', extra: [{ serviceId: kid.id, name: 'Lucía' }] },
+  });
+  assert.equal(r.status, 201);
+  assert.equal(r.data.service, 'Peinado de fallera + Peinado de fallera infantil');
+  assert.deepEqual(r.data.party, [
+    { name: 'Amparo', service: 'Peinado de fallera', start: '09:00', end: '10:30' },
+    { name: 'Lucía', service: 'Peinado de fallera infantil', start: '10:30', end: '11:30' },
+  ]);
+  const view = await call(`/api/bookings/${r.data.code}?t=${r.data.token}`);
+  assert.equal(view.data.party[1].name, 'Lucía');
+});
+
 test('hora de Madrid', () => {
   assert.deepEqual(nowInMadrid(new Date('2030-07-01T22:30:00Z')), { date: '2030-07-02', minutes: 30 });
 });

@@ -147,3 +147,16 @@ export const store = {
     }
   },
 };
+
+/** Filas del resguardo: quién va, con qué servicio y a qué hora. */
+export function partyRows(r, icon = (id) => `<svg class="icon" aria-hidden="true"><use href="#i-${id}"/></svg>`) {
+  const dur = (a, b) => duration(toMin(b) - toMin(a));
+  if (r.party?.length > 1) {
+    return `<div class="ticket__row">${icon('user')}<div><strong>${r.party.length} personas, seguidas</strong>
+      <ol class="ticket__party">${r.party
+        .map((p) => `<li><b>${prettyTime(p.start)}</b> ${esc(p.name)} · <span>${esc(p.service)}</span></li>`)
+        .join('')}</ol></div></div>`;
+  }
+  return `<div class="ticket__row">${icon('user')}<div><strong>${esc(r.name)}</strong><span>Reserva a su nombre</span></div></div>
+    <div class="ticket__row">${icon('scissors')}<div><strong>${esc(r.service)}</strong><span>${dur(r.start, r.end)}</span></div></div>`;
+}

@@ -38,7 +38,22 @@ async function readJson(req) {
 export const MAX_PEOPLE = 4;
 /** Número de personas para una cita seguida (1–4). */
 const peopleOf = (v) => Math.min(MAX_PEOPLE, Math.max(1, Math.floor(Number(v)) || 1));
-const serviceLabel = (name, people) => (people > 1 ? `${name} · ${people} personas` : name);
+
+/** Nombre del servicio de una cita de grupo: "Trenzas · 2 personas" o "Peinado de fallera + Trenzas". */
+function partyLabel(list) {
+  if (list.length === 1) return list[0].service;
+  const names = [...new Set(list.map((p) => p.service))];
+  return names.length === 1 ? `${names[0]} · ${list.length} personas` : names.join(' + ');
+}
+
+const parseParty = (raw) => {
+  try {
+    const v = JSON.parse(raw || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
 
 const str = (v, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const cleanPhone = (v) => str(v, 30).replace(/[^\d+]/g, '');
@@ -115,6 +130,7 @@ function bookingRow(r, { full = false } = {}) {
     end: toHHMM(r.end_min),
     name: r.name,
     status: r.status,
+    party: parseParty(r.party).map((p) => ({ name: p.name, service: p.service, start: toHHMM(p.start), end: toHHMM(p.end) })),
   };
   if (full) {
     Object.assign(b, {
@@ -230,14 +246,14 @@ function validateService(body) {
 // Inserta la cita solo si en ese mismo instante no hay otra cita ni bloqueo que se solape.
 // Es una única sentencia, así que es atómica también en D1 (sin transacciones).
 const INSERT_IF_FREE = `
-  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source)
-  SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source, party)
+  SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
   WHERE NOT EXISTS (SELECT 1 FROM bookings WHERE date = ? AND status = 'confirmed' AND start_min < ? AND end_min > ?)
     AND NOT EXISTS (SELECT 1 FROM blocks WHERE date = ? AND start_min < ? AND end_min > ?)`;
 
 const INSERT_ANY = `
-  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source, party)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 /* ---------- aplicación ---------- */
 
@@ -248,6 +264,24 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
 
   const isAdmin = (req) => auth.verify(getCookie(req, 'pentinats_admin'));
   const getService = (id) => db.get('SELECT * FROM services WHERE id = ?', id);
+
+  /**
+   * Servicios de las demás personas (además de la principal), en orden.
+   * Acepta `extra` (lista de ids o de {serviceId, name}) o, por compatibilidad, `people` (mismo servicio).
+   */
+  async function extrasFrom(main, { extra, people }, { web = true } = {}) {
+    let list = Array.isArray(extra) ? extra : typeof extra === 'string' && extra ? extra.split(',') : null;
+    if (!list) list = Array.from({ length: peopleOf(people) - 1 }, () => main.id);
+    if (list.length > MAX_PEOPLE - 1) throw bad(`Como máximo se pueden reservar ${MAX_PEOPLE} personas seguidas.`);
+    const out = [];
+    for (const item of list) {
+      const id = Number(typeof item === 'object' && item ? item.serviceId : item) || 0;
+      const svc = id === main.id ? main : await getService(id);
+      if (!svc || (web && !svc.active)) throw bad('Uno de los servicios elegidos no está disponible.');
+      out.push({ svc, name: typeof item === 'object' && item ? str(item.name, 60) : '' });
+    }
+    return out;
+  }
 
   async function createBooking(body, { source }) {
     const settings = await getSettings(db);
@@ -260,17 +294,32 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     const name = str(body.name, 80);
     const phone = cleanPhone(body.phone);
     const email = str(body.email, 120);
-    const people = source === 'web' ? peopleOf(body.people) : 1;
-    // Nombres de las demás personas (opcionales): se guardan en las notas para Miguel.
-    const others = (Array.isArray(body.others) ? body.others : []).slice(0, people - 1).map((x) => str(x, 60)).filter(Boolean);
+    // Demás personas (cada una con su servicio); los nombres son opcionales.
+    const extras = source === 'web' ? await extrasFrom(service, body) : [];
+    if (source === 'web' && !Array.isArray(body.extra) && Array.isArray(body.others)) {
+      body.others.forEach((n, i) => extras[i] && !extras[i].name && (extras[i].name = str(n, 60)));
+    }
     const baseNotes = str(body.notes, 600);
-    const notes = people > 1 ? [`${people} personas seguidas${others.length ? `: ${[name, ...others].join(', ')}` : ''}.`, baseNotes].filter(Boolean).join('\n') : baseNotes;
     if (name.length < 2) throw bad('Escribe tu nombre.');
     if (source === 'web' && phone.replace(/\D/g, '').length < 9) throw bad('Escribe un teléfono válido para que Miguel pueda avisarte.');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw bad('Revisa el correo electrónico.');
     const custom = Number(body.duration);
-    const duration = source === 'admin' && Number.isInteger(custom) && custom >= 10 && custom <= 600 ? custom : service.duration * people;
+    const duration =
+      source === 'admin' && Number.isInteger(custom) && custom >= 10 && custom <= 600
+        ? custom
+        : service.duration + extras.reduce((n, x) => n + x.svc.duration, 0);
     const end = start + duration;
+
+    // Orden y horas de cada persona (seguidas).
+    let t = start;
+    const party = [{ name, svc: service }, ...extras.map((x, i) => ({ name: x.name || `Persona ${i + 2}`, svc: x.svc }))].map((p) => {
+      const item = { name: p.name, serviceId: p.svc.id, service: p.svc.name, start: t, end: t + (extras.length ? p.svc.duration : duration) };
+      t = item.end;
+      return item;
+    });
+    const notes = party.length > 1
+      ? [`${party.length} personas seguidas: ${party.map((p) => `${toHHMM(p.start)} ${p.name} (${p.service})`).join(', ')}.`, baseNotes].filter(Boolean).join('\n')
+      : baseNotes;
 
     if (source === 'web') {
       const slots = await freeSlots(db, settings, date, duration, now());
@@ -283,7 +332,8 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     for (let attempt = 0; attempt < 4; attempt++) {
       const code = newCode();
       const token = randomToken();
-      const values = [code, token, service.id, serviceLabel(service.name, people), date, start, end, name, phone, email, notes, source];
+      const label = party.length > 1 ? partyLabel(party) : service.name;
+      const values = [code, token, service.id, label, date, start, end, name, phone, email, notes, source, party.length > 1 ? JSON.stringify(party) : ''];
       let r;
       try {
         r = force ? await db.run(INSERT_ANY, ...values) : await db.run(INSERT_IF_FREE, ...values, date, end, start, date, end, start);
@@ -324,8 +374,9 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       const n = now();
       const from = isValidDate(url.searchParams.get('from')) ? url.searchParams.get('from') : n.date;
       const count = Math.min(62, Math.max(1, Number(url.searchParams.get('n')) || 14));
-      const people = peopleOf(url.searchParams.get('people'));
-      return json(200, { days: await daySummary(db, settings, from, count, service.duration * people, n) });
+      const extras = await extrasFrom(service, { extra: url.searchParams.get('extra'), people: url.searchParams.get('people') });
+      const total = service.duration + extras.reduce((a, x) => a + x.svc.duration, 0);
+      return json(200, { days: await daySummary(db, settings, from, count, total, n) });
     }
 
     if (m === 'GET' && path === '/api/slots') {
@@ -334,8 +385,9 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       const date = url.searchParams.get('date');
       if (!service || !service.active) throw bad('Servicio no válido.');
       if (!isValidDate(date)) throw bad('Fecha no válida.');
-      const people = peopleOf(url.searchParams.get('people'));
-      const slots = (await freeSlots(db, settings, date, service.duration * people, now())).map(toHHMM);
+      const extras = await extrasFrom(service, { extra: url.searchParams.get('extra'), people: url.searchParams.get('people') });
+      const total = service.duration + extras.reduce((a, x) => a + x.svc.duration, 0);
+      const slots = (await freeSlots(db, settings, date, total, now())).map(toHHMM);
       return json(200, { date, slots });
     }
 

@@ -1,6 +1,6 @@
 import {
   $, $$, esc, api, addDays, daysBetween, weekday, longDate, fullDate, shortDate, monthLabel, dow, dayNum,
-  DAY_NAMES, toMin, prettyTime, prettyMin, duration, phoneHref, whatsappHref, prettyPhone, icsFor, store,
+  DAY_NAMES, toMin, prettyTime, prettyMin, duration, phoneHref, whatsappHref, prettyPhone, icsFor, store, partyRows,
 } from './shared.js';
 
 const ICON = (id) => `<svg class="icon" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -24,19 +24,29 @@ const state = {
   submitting: false,
   result: null,
   allTimes: false,
-  people: 1,
-  others: [],
+  extra: [], // demás personas: [{ serviceId, name }]
 };
 
 const MAX_PEOPLE = 4;
-const totalMin = () => (service()?.duration ?? 0) * state.people;
+const svcById = (id) => state.services.find((x) => x.id === Number(id));
+const peopleCount = () => 1 + state.extra.length;
+const totalMin = () => (service()?.duration ?? 0) + state.extra.reduce((n, e) => n + (svcById(e.serviceId)?.duration ?? 0), 0);
+const extraParam = () => (state.extra.length ? `&extra=${state.extra.map((e) => e.serviceId).join(',')}` : '');
+/** "Peinado de fallera · 2 personas" o "Peinado de fallera + Trenzas" */
+function groupLabel() {
+  const s = service();
+  if (!s) return '';
+  if (!state.extra.length) return s.name;
+  const names = [...new Set([s.name, ...state.extra.map((e) => svcById(e.serviceId)?.name)])];
+  return names.length === 1 ? `${s.name} · ${peopleCount()} personas` : names.join(' + ');
+}
 
 /* Reserva en curso: sobrevive a una recarga o a cambiar de app (solo en esta pestaña). */
 const FLOW_KEY = 'pentinats:flujo';
 function saveFlow() {
   try {
     if (!dlg.open || state.step === 'done') sessionStorage.removeItem(FLOW_KEY);
-    else sessionStorage.setItem(FLOW_KEY, JSON.stringify({ serviceId: state.serviceId, step: state.step, winStart: state.winStart, date: state.date, time: state.time, people: state.people }));
+    else sessionStorage.setItem(FLOW_KEY, JSON.stringify({ serviceId: state.serviceId, step: state.step, winStart: state.winStart, date: state.date, time: state.time, extra: state.extra }));
   } catch {
     /* almacenamiento no disponible */
   }
@@ -72,7 +82,7 @@ async function boot() {
   if (location.hash === '#reservar') {
     const f = readFlow();
     if (f && state.services.some((x) => x.id === f.serviceId) && (!f.winStart || f.winStart >= state.info.today)) {
-      Object.assign(state, { serviceId: f.serviceId, winStart: f.winStart || state.info.today, date: f.date, time: f.time, people: Math.min(MAX_PEOPLE, Math.max(1, f.people || 1)) });
+      Object.assign(state, { serviceId: f.serviceId, winStart: f.winStart || state.info.today, date: f.date, time: f.time, extra: (Array.isArray(f.extra) ? f.extra : []).filter((e) => svcById(e.serviceId)).slice(0, MAX_PEOPLE - 1) });
       state.step = f.step === 'details' && !(f.date && f.time) ? 'time' : f.step;
     }
     openBooking();
@@ -234,15 +244,13 @@ document.addEventListener('click', (e) => {
     const list = state.services.filter((s) => s.category === c.dataset.bookCat);
     if (list.length === 1) return openBooking(list[0].id);
     state.step = 'service';
+    state.filterCat = c.dataset.bookCat;
     openBooking();
-    if (state.step === 'service') {
-      const head = $$('.pick-group h3', content).find((h) => h.textContent === c.dataset.bookCat);
-      head?.scrollIntoView({ block: 'start' });
-    }
     return;
   }
   const b = e.target.closest('[data-book]');
   if (!b || b.closest('dialog')) return;
+  state.filterCat = null;
   const id = Number(b.dataset.book);
   openBooking(Number.isFinite(id) && id > 0 ? id : null);
 });
@@ -284,6 +292,7 @@ function closeBooking() {
 }
 
 function hideDialog() {
+  state.filterCat = null;
   if (dlg.open) dlg.close();
   saveFlow();
   document.documentElement.style.overflow = '';
@@ -382,7 +391,13 @@ function closedView() {
 }
 
 function serviceView() {
-  return groups()
+  const all = groups();
+  const gs = state.filterCat ? all.filter(([cat]) => cat === state.filterCat) : all;
+  const focus = state.filterCat && gs.length
+    ? `<div class="pick-focus"><p class="booking__lede">Elige el peinado de ${esc(state.filterCat.toLowerCase().replace(/s$/, ''))}:</p></div>`
+    : '';
+  const more = state.filterCat && gs.length ? `<button type="button" class="link-btn" data-all-services>Ver todos los servicios</button>` : '';
+  return focus + (gs.length ? gs : all)
     .map(
       ([cat, list]) => `
       <div class="pick-group">
@@ -401,7 +416,7 @@ function serviceView() {
         </ul>
       </div>`
     )
-    .join('');
+    .join('') + more;
 }
 
 function timeView() {
@@ -475,20 +490,39 @@ function timeView() {
   const sv = service();
   const people = `
     <div class="people">
-      <div>
-        <span class="people__label" id="people-label">¿Para cuántas personas?</span>
-        <span class="people__hint">${state.people > 1 ? `Citas seguidas · ${duration(totalMin())} en total` : 'Si venís varias (por ejemplo, hermanas), se reservan seguidas'}</span>
+      <div class="people__head">
+        <div>
+          <span class="people__label" id="people-label">¿Para cuántas personas?</span>
+          <span class="people__hint">${state.extra.length ? `Citas seguidas · ${duration(totalMin())} en total` : 'Si venís varias (por ejemplo, madre e hijas), se reservan seguidas'}</span>
+        </div>
+        <div class="stepper" role="group" aria-labelledby="people-label">
+          <button type="button" class="icon-btn" data-people="-1" aria-label="Una persona menos" ${!state.extra.length ? 'disabled' : ''}>${ICON('minus')}</button>
+          <output aria-live="polite">${peopleCount()}</output>
+          <button type="button" class="icon-btn" data-people="1" aria-label="Una persona más" ${peopleCount() >= MAX_PEOPLE ? 'disabled' : ''}>${ICON('plus')}</button>
+        </div>
       </div>
-      <div class="stepper" role="group" aria-labelledby="people-label">
-        <button type="button" class="icon-btn" data-people="-1" aria-label="Una persona menos" ${state.people <= 1 ? 'disabled' : ''}>${ICON('minus')}</button>
-        <output aria-live="polite">${state.people}</output>
-        <button type="button" class="icon-btn" data-people="1" aria-label="Una persona más" ${state.people >= MAX_PEOPLE ? 'disabled' : ''}>${ICON('plus')}</button>
-      </div>
+      ${
+        state.extra.length
+          ? `<ol class="people__list">
+        <li><span>Persona 1</span><strong>${esc(sv.name)}</strong></li>
+        ${state.extra
+          .map(
+            (e, i) => `<li><label for="x-svc-${i}">Persona ${i + 2}</label>
+          <select class="select" id="x-svc-${i}" data-extra-svc="${i}">${state.services
+            .map((x) => `<option value="${x.id}" ${x.id === Number(e.serviceId) ? 'selected' : ''}>${esc(x.name)} · ${duration(x.duration)}</option>`)
+            .join('')}</select></li>`
+          )
+          .join('')}
+      </ol>`
+          : ''
+      }
+      ${peopleCount() >= MAX_PEOPLE ? `<p class="people__hint">Para más de ${MAX_PEOPLE} personas, escribe a Miguel por Instagram.</p>` : ''}
     </div>`;
 
   return `
     ${state.error ? `<div class="alert" role="alert">${ICON('info')}<span>${esc(state.error)}</span></div>` : ''}
     ${sv ? people : ''}
+    ${state.notice ? `<p class="window-note" role="status">${ICON('info')}<span>${esc(state.notice)}</span></p>` : ''}
     <div>
       <div class="datebar">
         ${monthPicker(today, lastDay)}
@@ -518,11 +552,15 @@ function detailsView() {
         <label for="f-name">Nombre y apellidos</label>
         <input class="input" id="f-name" name="name" autocomplete="name" required minlength="2" maxlength="80" value="${esc(f.name)}">
       </div>
-      ${Array.from({ length: state.people - 1 }, (_, i) => `
+      ${state.extra
+        .map(
+          (e, i) => `
       <div class="field">
-        <label for="f-other-${i}">Nombre de la persona ${i + 2} <span class="muted">(opcional)</span></label>
-        <input class="input" id="f-other-${i}" data-other="${i}" maxlength="60" value="${esc(state.others[i] || '')}">
-      </div>`).join('')}
+        <label for="f-other-${i}">Nombre de la persona ${i + 2} <span class="muted">(${esc(svcById(e.serviceId)?.name ?? '')})</span></label>
+        <input class="input" id="f-other-${i}" data-other="${i}" maxlength="60" value="${esc(e.name || '')}" placeholder="Opcional">
+      </div>`
+        )
+        .join('')}
       <div class="field">
         <label for="f-phone">Teléfono</label>
         <input class="input" id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required value="${esc(f.phone)}" placeholder="600 000 000">
@@ -544,7 +582,10 @@ function detailsView() {
 const citaUrl = (r) => `${location.origin}/cita?c=${r.code}&t=${encodeURIComponent(r.token)}`;
 
 function shareText(r) {
-  return `Cita con Miguel de la Cruz (Pentinats) a nombre de ${r.name}: ${r.service}, ${fullDate(r.date).toLowerCase()} a las ${prettyTime(r.start)}. Calle del Cid, 12, Paterna. Código ${r.code}. Ver o cancelar: ${citaUrl(r)}`;
+  const who = r.party?.length
+    ? r.party.map((p) => `${prettyTime(p.start)} ${p.name} (${p.service})`).join(', ')
+    : `${prettyTime(r.start)} ${r.name} (${r.service})`;
+  return `Cita con Miguel de la Cruz (Pentinats), ${fullDate(r.date).toLowerCase()}: ${who}. Calle del Cid, 12, Paterna. Código ${r.code}. Ver o cancelar: ${citaUrl(r)}`;
 }
 
 function doneView() {
@@ -562,8 +603,7 @@ function doneView() {
           <div class="ticket__code"><span>Código</span><strong>${r.code}</strong></div>
         </header>
         <div class="ticket__body">
-          <div class="ticket__row">${ICON('user')}<div><strong>${esc(r.name)}</strong><span>Titular de la cita</span></div></div>
-          <div class="ticket__row">${ICON('scissors')}<div><strong>${esc(r.service)}</strong><span>${duration(toMin(r.end) - toMin(r.start))}</span></div></div>
+          ${partyRows(r)}
           <div class="ticket__row">${ICON('cal')}<div><strong>${fullDate(r.date)}</strong><span>de ${prettyTime(r.start)} a ${prettyTime(r.end)}</span></div></div>
           <div class="ticket__row">${ICON('pin')}<div><strong>Calle del Cid, 12, bajo</strong><span>46980 Paterna</span></div></div>
         </div>
@@ -605,17 +645,16 @@ function renderSummary(step) {
   const label = step === 'details' ? 'Confirmar cita' : 'Continuar';
   const when = state.date && state.time ? `${fullDate(state.date)}` : '';
   const end = state.time && s ? prettyMin(toMin(state.time) + totalMin()) : '';
-  const who = state.people > 1 ? ` · ${state.people} personas` : '';
+  const svcLabel = groupLabel();
 
   $('#summary').innerHTML = `
     <div class="summary__salon">
-      <img src="/assets/logo-sello.png" alt="" width="52" height="52">
       <div><strong>Miguel de la Cruz</strong><span>Calle del Cid, 12 · Paterna</span></div>
     </div>
     <dl>
       ${
         s
-          ? `<div><dt>${ICON('scissors')}<span class="visually-hidden">Servicio</span></dt><dd><strong>${esc(s.name)}${who}</strong><span>${duration(totalMin())}${s.price && state.people === 1 ? ` · ${esc(s.price)}` : ''}</span></dd></div>`
+          ? `<div><dt>${ICON('scissors')}<span class="visually-hidden">Servicio</span></dt><dd><strong>${esc(svcLabel)}</strong><span>${duration(totalMin())}${s.price && !state.extra.length ? ` · ${esc(s.price)}` : ''}</span></dd></div>`
           : `<p class="summary__empty">Aún no has elegido servicio.</p>`
       }
       ${when ? `<div><dt>${ICON('cal')}<span class="visually-hidden">Fecha</span></dt><dd><strong>${when}</strong><span>de ${prettyTime(state.time)} a ${end}</span></dd></div>` : ''}
@@ -626,7 +665,7 @@ function renderSummary(step) {
   const foot = $('#booking-foot');
   foot.classList.toggle('is-hidden', step === 'done' || closed);
   $('#foot-summary').innerHTML = s
-    ? `<strong>${esc(s.name)}${who}</strong><span>${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(totalMin())}</span>`
+    ? `<strong>${esc(svcLabel)}</strong><span>${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(totalMin())}</span>`
     : `<span>Elige un servicio</span>`;
   const fb = $('#foot-next');
   fb.textContent = label;
@@ -651,18 +690,26 @@ $('#summary').addEventListener('click', (e) => {
 
 function bindStep(step) {
   if (step === 'service') {
+    $('[data-all-services]', content)?.addEventListener('click', () => {
+      state.filterCat = null;
+      render();
+    });
     $$('[data-service]', content).forEach((b) =>
       b.addEventListener('click', () => {
         state.serviceId = Number(b.dataset.service);
-        state.people = 1;
-        state.others = [];
+        state.extra = [];
         resetTime();
         go('time');
       })
     );
   }
   if (step === 'time') {
-    $$('[data-date]', content).forEach((b) => b.addEventListener('click', () => selectDate(b.dataset.date)));
+    $$('[data-date]', content).forEach((b) =>
+      b.addEventListener('click', () => {
+        state.notice = '';
+        selectDate(b.dataset.date);
+      })
+    );
     $$('[data-time]', content).forEach((b) =>
       b.addEventListener('click', () => {
         state.time = b.dataset.time;
@@ -673,11 +720,17 @@ function bindStep(step) {
     );
     $$('[data-people]', content).forEach((b) =>
       b.addEventListener('click', () => {
-        state.people = Math.min(MAX_PEOPLE, Math.max(1, state.people + Number(b.dataset.people)));
-        state.date = null;
-        state.slots = null;
+        if (Number(b.dataset.people) > 0 && peopleCount() < MAX_PEOPLE) state.extra.push({ serviceId: state.serviceId, name: '' });
+        if (Number(b.dataset.people) < 0) state.extra.pop();
         state.time = null;
-        loadDays();
+        loadDays({ keep: true, peopleChange: true });
+      })
+    );
+    $$('[data-extra-svc]', content).forEach((sel) =>
+      sel.addEventListener('change', () => {
+        state.extra[Number(sel.dataset.extraSvc)].serviceId = Number(sel.value);
+        state.time = null;
+        loadDays({ keep: true, peopleChange: true });
       })
     );
     $('[data-month]', content)?.addEventListener('change', (e) => {
@@ -719,7 +772,7 @@ function bindStep(step) {
     const form = $('#details-form');
     form.addEventListener('input', (e) => {
       if (e.target.name in state.form) state.form[e.target.name] = e.target.value;
-      if (e.target.dataset.other) state.others[Number(e.target.dataset.other)] = e.target.value;
+      if (e.target.dataset.other) state.extra[Number(e.target.dataset.other)].name = e.target.value;
       e.target.removeAttribute('aria-invalid');
     });
     form.addEventListener('submit', (e) => {
@@ -752,20 +805,24 @@ function bindStep(step) {
   }
 }
 
-async function loadDays({ keep = false, prefer = null } = {}) {
+async function loadDays({ keep = false, prefer = null, peopleChange = false } = {}) {
   const keepDate = keep ? state.date : null;
   const keepTime = keep ? state.time : null;
   state.daysLoading = true;
   state.days = [];
   render();
   try {
-    const { days } = await api(`/api/days?service=${state.serviceId}&from=${state.winStart}&n=${WINDOW}&people=${state.people}`);
+    const { days } = await api(`/api/days?service=${state.serviceId}&from=${state.winStart}&n=${WINDOW}${extraParam()}`);
     const last = addDays(state.info.today, settings().maxDaysAhead);
     state.days = days.filter((d) => d.date <= last);
     state.daysLoading = false;
     const kept = keepDate && state.days.find((d) => d.date === keepDate && d.free);
     if (kept) return selectDate(kept.date, keepTime);
     const first = (prefer && state.days.find((d) => d.free && d.date >= prefer)) || state.days.find((d) => d.free);
+    state.notice =
+      peopleChange && keepDate && first && first.date !== keepDate
+        ? `El ${longDate(keepDate).toLowerCase()} ya no tiene hueco para ${peopleCount()} ${peopleCount() === 1 ? 'persona' : 'personas'} seguidas: te mostramos el ${longDate(first.date).toLowerCase()}.`
+        : '';
     if (first) return selectDate(first.date);
   } catch (e) {
     state.error = e.message;
@@ -781,7 +838,7 @@ async function selectDate(date, keepTime = null) {
   state.slotsLoading = true;
   render();
   try {
-    const { slots } = await api(`/api/slots?service=${state.serviceId}&date=${date}&people=${state.people}`);
+    const { slots } = await api(`/api/slots?service=${state.serviceId}&date=${date}${extraParam()}`);
     if (state.date !== date) return;
     state.slots = slots;
     if (keepTime && slots.includes(keepTime)) state.time = keepTime;
@@ -829,16 +886,14 @@ async function submit() {
         phone: f.phone,
         email: f.email,
         notes: f.notes,
-        people: state.people,
-        others: state.others.slice(0, state.people - 1),
+        extra: state.extra.map((e) => ({ serviceId: e.serviceId, name: e.name || '' })),
         website: form.website.value,
       },
     });
     store.set('pentinats:cliente', { name: f.name, phone: f.phone, email: f.email });
     state.result = r;
     state.submitting = false;
-    state.people = 1;
-    state.others = [];
+    state.extra = [];
     state.form.notes = '';
     go('done');
   } catch (e) {

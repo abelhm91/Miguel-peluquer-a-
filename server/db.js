@@ -51,7 +51,15 @@ export async function nodeAdapter(file) {
   const db = new DatabaseSync(file);
   if (file !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
   const here = dirname(fileURLToPath(import.meta.url));
-  db.exec(readFileSync(join(here, '..', 'migrations', '0001_init.sql'), 'utf8'));
+  // Aplica las migraciones pendientes, registrándolas igual que wrangler (tabla d1_migrations).
+  const { readdirSync } = await import('node:fs');
+  const dir = join(here, '..', 'migrations');
+  db.exec('CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)');
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql')).sort()) {
+    if (db.prepare('SELECT 1 FROM d1_migrations WHERE name = ?').get(f)) continue;
+    db.exec(readFileSync(join(dir, f), 'utf8'));
+    db.prepare('INSERT INTO d1_migrations (name) VALUES (?)').run(f);
+  }
   return {
     raw: db,
     async get(sql, ...p) {
