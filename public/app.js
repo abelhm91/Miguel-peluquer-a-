@@ -744,6 +744,7 @@ function detailsView() {
         <label for="f-notes">Notas para mí <span class="muted">(opcional)</span></label>
         <textarea class="textarea" id="f-notes" name="notes" maxlength="600" placeholder="Por ejemplo: la fecha de la boda, el largo del pelo o si traes tu aderezo…">${esc(f.notes)}</textarea>
       </div>
+      ${totalPrice() ? `<p class="price-line">${ICON('euro')}<span><strong>${totalPrice().replace(' en total', '')}</strong> ${state.extra.length ? 'en total' : ''} · se paga en el salón</span></p>` : ''}
       <div class="hp" aria-hidden="true"><label>No rellenar <input name="website" tabindex="-1" autocomplete="off"></label></div>
       <p class="fineprint">Solo uso tus datos para gestionar esta cita.</p>
     </form>`;
@@ -755,7 +756,7 @@ function shareText(r) {
   const who = r.party?.length
     ? r.party.map((p) => `${prettyTime(p.start)} ${p.name} (${p.service})`).join(', ')
     : `${prettyTime(r.start)} ${r.name} (${r.service})`;
-  return `Cita con Miguel de la Cruz (Pentinats), ${fullDate(r.date).toLowerCase()}: ${who}. Calle del Cid, 12, Paterna. Código ${r.code}. Ver o cancelar: ${citaUrl(r)}`;
+  return `Cita con Miguel de la Cruz (Pentinats), ${fullDate(r.date).toLowerCase()}: ${who}.${r.price ? ` Total: ${euros(r.price)}.` : ''} Calle del Cid, 12, Paterna. Código ${r.code}. Ver o cancelar: ${citaUrl(r)}`;
 }
 
 function doneView() {
@@ -843,7 +844,7 @@ function renderSummary(step) {
   const foot = $('#booking-foot');
   foot.classList.toggle('is-hidden', step === 'done' || closed);
   $('#foot-summary').innerHTML = s
-    ? `<strong>${esc(s.name)}${state.extra.length ? ' y más' : ''}</strong><span>${state.extra.length ? `${peopleCount()} personas · ` : ''}${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(totalMin())}</span>`
+    ? `<strong>${esc(s.name)}${state.extra.length ? ' y más' : ''}</strong><span>${state.extra.length ? `${peopleCount()} personas · ` : ''}${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(totalMin())}${totalPrice() ? ` · <b>${totalPrice().replace(' en total', '')}</b>` : ''}</span>`
     : `<span>Elige un servicio</span>`;
   const fb = $('#foot-next');
   fb.textContent = label;

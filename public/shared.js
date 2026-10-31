@@ -148,17 +148,18 @@ export const store = {
   },
 };
 
-/** Filas del resguardo: quién va, con qué servicio y a qué hora. */
+/** Filas del resguardo: quién va, con qué servicio, a qué hora y cuánto cuesta. */
 export function partyRows(r, icon = (id) => `<svg class="icon" aria-hidden="true"><use href="#i-${id}"/></svg>`) {
   const dur = (a, b) => duration(toMin(b) - toMin(a));
+  const total = r.price ? `<div class="ticket__row ticket__total">${icon('euro')}<div><strong>${euros(r.price)}</strong><span>${r.party?.length > 1 ? 'Total de la cita' : 'Precio'} · se paga en el salón</span></div></div>` : '';
   if (r.party?.length > 1) {
     return `<div class="ticket__row">${icon('user')}<div><strong>${r.party.length} personas, seguidas</strong>
       <ol class="ticket__party">${r.party
-        .map((p) => `<li><b>${prettyTime(p.start)}</b> ${esc(p.name)} · <span>${esc(p.service)}</span></li>`)
-        .join('')}</ol></div></div>`;
+        .map((p) => `<li><b>${prettyTime(p.start)}</b> ${esc(p.name)} · <span>${esc(p.service)}${p.price ? ` · ${euros(p.price)}` : ''}</span></li>`)
+        .join('')}</ol></div></div>${total}`;
   }
   return `<div class="ticket__row">${icon('user')}<div><strong>${esc(r.name)}</strong><span>Reserva a su nombre</span></div></div>
-    <div class="ticket__row">${icon('scissors')}<div><strong>${esc(r.service)}</strong><span>${dur(r.start, r.end)}</span></div></div>`;
+    <div class="ticket__row">${icon('scissors')}<div><strong>${esc(r.service)}</strong><span>${dur(r.start, r.end)}</span></div></div>${total}`;
 }
 
 /** Precio en euros: "50" → "50 €", "35,5" → "35,50 €"; un texto libre ("desde 40 €") se deja tal cual. */

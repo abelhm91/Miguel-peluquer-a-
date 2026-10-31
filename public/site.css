@@ -1482,3 +1482,34 @@
     min-height: 44px;
   }
 }
+
+/* precio en la reserva y en el resguardo */
+.price-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.price-line .icon {
+  color: var(--gold-ink);
+}
+
+.price-line strong {
+  font-size: 1.125rem;
+}
+
+.ticket__total {
+  padding-top: 14px;
+  border-top: 1px dashed var(--line-strong);
+}
+
+.ticket__total strong {
+  font-size: 1.25rem;
+}
+
+.booking__foot-summary b {
+  color: var(--ink);
+}

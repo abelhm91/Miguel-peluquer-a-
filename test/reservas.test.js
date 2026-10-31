@@ -170,7 +170,7 @@ test('grupo con servicios distintos: orden, horas y nombres', async () => {
   });
   assert.equal(r.status, 201);
   assert.equal(r.data.service, 'Peinado de fallera + Peinado de fallera infantil');
-  assert.deepEqual(r.data.party.map(({ serviceId, ...p }) => p), [
+  assert.deepEqual(r.data.party.map(({ serviceId, price, ...p }) => p), [
     { name: 'Amparo', service: 'Peinado de fallera', start: '09:00', end: '10:30' },
     { name: 'Lucía', service: 'Peinado de fallera infantil', start: '10:30', end: '11:30' },
   ]);
@@ -191,6 +191,21 @@ test('cambiar la hora: reutiliza el teléfono y cancela la anterior después', a
   assert.deepEqual(b.data.replaced, { ok: true, code: a.data.code });
   const old = await call(`/api/bookings/${a.data.code}?t=${a.data.token}`);
   assert.equal(old.data.status, 'cancelled');
+});
+
+test('precio total guardado en la cita', async () => {
+  const { db, call } = await setup();
+  await db.run("UPDATE services SET price = '50' WHERE name = 'Peinado de fallera'");
+  await db.run("UPDATE services SET price = '35,5' WHERE name = 'Peinado de fallera infantil'");
+  const svcs = (await call('/api/info')).data.services;
+  const adult = svcs.find((x) => x.name === 'Peinado de fallera');
+  const kid = svcs.find((x) => x.name === 'Peinado de fallera infantil');
+  const r = await call('/api/bookings', { method: 'POST', body: { serviceId: adult.id, date: MONDAY, time: '09:00', name: 'Amparo', phone: '600112233', extra: [{ serviceId: kid.id, name: 'Lucía' }] } });
+  assert.equal(r.data.price, '85,50');
+  assert.deepEqual(r.data.party.map((p) => p.price), ['50', '35,50']);
+  const sinPrecio = svcs.find((x) => x.name === 'Trenzas');
+  const r2 = await call('/api/bookings', { method: 'POST', body: { serviceId: sinPrecio.id, date: MONDAY, time: '16:00', name: 'Ana', phone: '600112233' } });
+  assert.equal(r2.data.price, '', 'sin precio no se inventa');
 });
 
 test('hora de Madrid', () => {

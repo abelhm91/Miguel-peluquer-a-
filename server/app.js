@@ -46,6 +46,13 @@ function partyLabel(list) {
   return names.length === 1 ? `${names[0]} · ${list.length} personas` : names.join(' + ');
 }
 
+/** Precio numérico en euros de un servicio ("50", "35,5", "50 €"); null si no es un número simple. */
+function priceNum(v) {
+  const m = String(v ?? '').trim().replace(/\s*€$/, '').match(/^(\d+)(?:[.,](\d{1,2}))?$/);
+  return m ? Number(`${m[1]}.${m[2] || 0}`) : null;
+}
+const priceText = (n) => (n === null ? '' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ','));
+
 const parseParty = (raw) => {
   try {
     const v = JSON.parse(raw || '[]');
@@ -131,7 +138,8 @@ function bookingRow(r, { full = false } = {}) {
     name: r.name,
     status: r.status,
     serviceId: r.service_id,
-    party: parseParty(r.party).map((p) => ({ name: p.name, serviceId: p.serviceId, service: p.service, start: toHHMM(p.start), end: toHHMM(p.end) })),
+    price: r.price || '',
+    party: parseParty(r.party).map((p) => ({ name: p.name, serviceId: p.serviceId, service: p.service, start: toHHMM(p.start), end: toHHMM(p.end), price: p.price || '' })),
   };
   if (full) {
     Object.assign(b, {
@@ -247,14 +255,14 @@ function validateService(body) {
 // Inserta la cita solo si en ese mismo instante no hay otra cita ni bloqueo que se solape.
 // Es una única sentencia, así que es atómica también en D1 (sin transacciones).
 const INSERT_IF_FREE = `
-  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source, party)
-  SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source, party, price)
+  SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
   WHERE NOT EXISTS (SELECT 1 FROM bookings WHERE date = ? AND status = 'confirmed' AND start_min < ? AND end_min > ?)
     AND NOT EXISTS (SELECT 1 FROM blocks WHERE date = ? AND start_min < ? AND end_min > ?)`;
 
 const INSERT_ANY = `
-  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source, party)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source, party, price)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 /* ---------- aplicación ---------- */
 
@@ -314,10 +322,12 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     // Orden y horas de cada persona (seguidas).
     let t = start;
     const party = [{ name, svc: service }, ...extras.map((x, i) => ({ name: x.name || `Persona ${i + 2}`, svc: x.svc }))].map((p) => {
-      const item = { name: p.name, serviceId: p.svc.id, service: p.svc.name, start: t, end: t + (extras.length ? p.svc.duration : duration) };
+      const item = { name: p.name, serviceId: p.svc.id, service: p.svc.name, start: t, end: t + (extras.length ? p.svc.duration : duration), price: priceText(priceNum(p.svc.price)) };
       t = item.end;
       return item;
     });
+    const prices = party.map((p) => priceNum(p.price));
+    const total = source === 'web' && prices.every((v) => v !== null) ? priceText(prices.reduce((a, b) => a + b, 0)) : '';
     const notes = party.length > 1
       ? [`${party.length} personas seguidas: ${party.map((p) => `${toHHMM(p.start)} ${p.name} (${p.service})`).join(', ')}.`, baseNotes].filter(Boolean).join('\n')
       : baseNotes;
@@ -334,7 +344,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       const code = newCode();
       const token = randomToken();
       const label = party.length > 1 ? partyLabel(party) : service.name;
-      const values = [code, token, service.id, label, date, start, end, name, phone, email, notes, source, party.length > 1 ? JSON.stringify(party) : ''];
+      const values = [code, token, service.id, label, date, start, end, name, phone, email, notes, source, party.length > 1 ? JSON.stringify(party) : '', total];
       let r;
       try {
         r = force ? await db.run(INSERT_ANY, ...values) : await db.run(INSERT_IF_FREE, ...values, date, end, start, date, end, start);
