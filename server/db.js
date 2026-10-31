@@ -1,19 +1,9 @@
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
-
-// Servicios iniciales: las especialidades del perfil de Instagram de Miguel.
-// Las duraciones son orientativas y se ajustan desde el panel (/admin).
-// No hay precios: Miguel los añade si quiere mostrarlos.
-const SEED_SERVICES = [
-  { category: 'Falleras', name: 'Peinado de fallera', description: 'Peinado tradicional de fallera con moños y aderezo.', duration: 90 },
-  { category: 'Falleras', name: 'Peinado de fallera infantil', description: 'Peinado de fallera para las más pequeñas.', duration: 60 },
-  { category: 'Trenzas', name: 'Trenzas', description: 'Trenzas para chica y chico.', duration: 60 },
-  { category: 'Peinados y recogidos', name: 'Peinado', description: 'Peinado para un día especial o un evento.', duration: 45 },
-  { category: 'Peinados y recogidos', name: 'Recogido', description: 'Recogido para bodas, comuniones y celebraciones.', duration: 60 },
-  { category: 'Peinados y recogidos', name: 'Novia', description: 'Peinado o recogido de novia. Cuéntale a Miguel la fecha de la boda en las notas.', duration: 90 },
-  { category: 'Peluquería', name: 'Mechas', description: 'Mechas y color.', duration: 120 },
-];
+// Acceso a datos con una interfaz asíncrona común:
+//   db.get(sql, ...params)  → fila o null
+//   db.all(sql, ...params)  → filas
+//   db.run(sql, ...params)  → { changes, lastRowId }
+//   db.batch([[sql, params], ...]) → ejecuta todo de una vez (atómico)
+// Hay dos adaptadores: Cloudflare D1 (producción) y node:sqlite (local y tests).
 
 export const DEFAULT_SETTINGS = {
   // Horario semanal: lunes (0) … domingo (6). Vacío = cerrado.
@@ -31,67 +21,64 @@ export const DEFAULT_SETTINGS = {
   bookingNote: '',
 };
 
-export function openDb(file) {
-  if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
-  const db = new DatabaseSync(file);
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
-    CREATE TABLE IF NOT EXISTS services (
-      id INTEGER PRIMARY KEY,
-      category TEXT NOT NULL DEFAULT '',
-      name TEXT NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      duration INTEGER NOT NULL,
-      price TEXT NOT NULL DEFAULT '',
-      active INTEGER NOT NULL DEFAULT 1,
-      sort INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS bookings (
-      id INTEGER PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      token TEXT NOT NULL,
-      service_id INTEGER,
-      service_name TEXT NOT NULL,
-      date TEXT NOT NULL,
-      start_min INTEGER NOT NULL,
-      end_min INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      phone TEXT NOT NULL,
-      email TEXT NOT NULL DEFAULT '',
-      notes TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'confirmed',
-      source TEXT NOT NULL DEFAULT 'web',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      cancelled_at TEXT
-    );
-    CREATE INDEX IF NOT EXISTS bookings_date ON bookings(date, status);
-    CREATE TABLE IF NOT EXISTS blocks (
-      id INTEGER PRIMARY KEY,
-      date TEXT NOT NULL,
-      start_min INTEGER NOT NULL,
-      end_min INTEGER NOT NULL,
-      reason TEXT NOT NULL DEFAULT ''
-    );
-    CREATE INDEX IF NOT EXISTS blocks_date ON blocks(date);
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-  `);
-
-  const count = db.prepare('SELECT COUNT(*) AS n FROM services').get().n;
-  if (count === 0) {
-    const ins = db.prepare(
-      'INSERT INTO services (category, name, description, duration, sort) VALUES (?, ?, ?, ?, ?)'
-    );
-    SEED_SERVICES.forEach((s, i) => ins.run(s.category, s.name, s.description, s.duration, i));
-  }
-  return db;
+/** Adaptador para un binding D1 de Cloudflare. */
+export function d1Adapter(d1) {
+  const st = (sql, params) => d1.prepare(sql).bind(...params);
+  return {
+    async get(sql, ...p) {
+      return (await st(sql, p).first()) ?? null;
+    },
+    async all(sql, ...p) {
+      return (await st(sql, p).all()).results;
+    },
+    async run(sql, ...p) {
+      const r = await st(sql, p).run();
+      return { changes: r.meta.changes, lastRowId: r.meta.last_row_id };
+    },
+    async batch(list) {
+      await d1.batch(list.map(([sql, p = []]) => st(sql, p)));
+    },
+  };
 }
 
-export function getSettings(db) {
-  const rows = db.prepare('SELECT key, value FROM settings').all();
+/** Adaptador para node:sqlite (servidor local y tests). */
+export async function nodeAdapter(file) {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { mkdirSync, readFileSync } = await import('node:fs');
+  const { dirname, join } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
+  const db = new DatabaseSync(file);
+  if (file !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
+  const here = dirname(fileURLToPath(import.meta.url));
+  db.exec(readFileSync(join(here, '..', 'migrations', '0001_init.sql'), 'utf8'));
+  return {
+    raw: db,
+    async get(sql, ...p) {
+      return db.prepare(sql).get(...p) ?? null;
+    },
+    async all(sql, ...p) {
+      return db.prepare(sql).all(...p);
+    },
+    async run(sql, ...p) {
+      const r = db.prepare(sql).run(...p);
+      return { changes: Number(r.changes), lastRowId: Number(r.lastInsertRowid) };
+    },
+    async batch(list) {
+      db.exec('BEGIN');
+      try {
+        for (const [sql, p = []] of list) db.prepare(sql).run(...p);
+        db.exec('COMMIT');
+      } catch (e) {
+        db.exec('ROLLBACK');
+        throw e;
+      }
+    },
+  };
+}
+
+export async function getSettings(db) {
+  const rows = await db.all('SELECT key, value FROM settings');
   const out = structuredClone(DEFAULT_SETTINGS);
   for (const r of rows) {
     if (r.key in DEFAULT_SETTINGS) out[r.key] = JSON.parse(r.value);
@@ -99,23 +86,10 @@ export function getSettings(db) {
   return out;
 }
 
-export function saveSettings(db, patch) {
-  const up = db.prepare(
-    'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
-  );
-  for (const [k, v] of Object.entries(patch)) {
-    if (k in DEFAULT_SETTINGS) up.run(k, JSON.stringify(v));
-  }
-}
-
-export function transaction(db, fn) {
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const r = fn();
-    db.exec('COMMIT');
-    return r;
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
-  }
+export async function saveSettings(db, patch) {
+  const sql = 'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value';
+  const list = Object.entries(patch)
+    .filter(([k]) => k in DEFAULT_SETTINGS)
+    .map(([k, v]) => [sql, [k, JSON.stringify(v)]]);
+  if (list.length) await db.batch(list);
 }

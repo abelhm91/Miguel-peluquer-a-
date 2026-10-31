@@ -7,44 +7,57 @@ Web de la peluquería de Miguel de la Cruz (Calle del Cid, 12, bajo · Paterna),
 - **Consultar o cancelar (`/cita`)**: cada clienta recibe su enlace privado.
 - **Panel (`/admin`)**: agenda por día, próximas citas, añadir citas a mano (las de teléfono o WhatsApp), cancelar o recuperar citas, bloquear horas o días (vacaciones, festivos), editar el horario semanal, los servicios (duración, precio opcional, visible o no) y los datos de contacto.
 
-Sin dependencias: Node.js 22.13 o superior, con base de datos SQLite (`node:sqlite`) en un único fichero.
+Se publica en **Cloudflare Workers + D1** (gratis para este volumen). El mismo código funciona también con Node 22 y SQLite en local.
 
-## Puesta en marcha
+## Publicar en Cloudflare (recomendado, plan gratuito)
+
+La web se publica como un **Cloudflare Worker**: las páginas de `public/` se sirven como archivos estáticos y la agenda vive en una base de datos **D1**. Configuración en `wrangler.jsonc`, código del Worker en `worker.js`.
+
+Desde un ordenador con Node 22 instalado, dentro de la carpeta del proyecto:
 
 ```bash
-ADMIN_PASSWORD='una-contraseña-larga' npm start
-# → http://localhost:3000   (panel: http://localhost:3000/admin)
+npm install
+npx wrangler login                                   # abre el navegador para entrar en tu cuenta de Cloudflare
+npx wrangler d1 create pentinats-reservas            # crea la base de datos y muestra su "database_id"
+#   → copia ese id en wrangler.jsonc, en "database_id"
+npm run cf:migrate                                   # crea las tablas y los servicios iniciales
+npx wrangler secret put ADMIN_PASSWORD               # contraseña del panel de Miguel
+npx wrangler secret put SESSION_SECRET               # cualquier texto largo y aleatorio
+npm run deploy                                       # publica: https://pentinats-reservas.<tu-subdominio>.workers.dev
+```
+
+Para usar un dominio propio (por ejemplo `migueldelacruz.es`): en el panel de Cloudflare → *Workers & Pages* → `pentinats-reservas` → *Settings* → *Domains & Routes* → *Add custom domain*.
+
+Para publicar solo con cada `git push`: *Workers & Pages* → *Create* → *Import a repository* → este repositorio (comando de despliegue `npx wrangler deploy`). La base de datos, las migraciones y los dos secretos se crean una vez, como arriba.
+
+Copia de seguridad de la agenda: `npx wrangler d1 export pentinats-reservas --remote --output copia.sql`.
+
+## Desarrollo en local
+
+```bash
+npm test                                             # pruebas de disponibilidad, reservas y panel
+npm run cf:dev                                       # simula Cloudflare (Worker + D1) en http://localhost:8787
+                                                     #   necesita un fichero .dev.vars con ADMIN_PASSWORD=... y SESSION_SECRET=...
+```
+
+También funciona con Node solo, sin Cloudflare, con SQLite en un fichero:
+
+```bash
+ADMIN_PASSWORD='una-contraseña' npm start            # http://localhost:3000   (panel: /admin)
+npm run demo                                         # crea data/demo.db con un horario y citas de EJEMPLO
+DATABASE_FILE=data/demo.db ADMIN_PASSWORD=demo npm start
 ```
 
 | Variable | Para qué sirve |
 |---|---|
 | `ADMIN_PASSWORD` | Contraseña del panel. Sin ella el panel está desactivado. |
-| `SESSION_SECRET` | Texto aleatorio largo para firmar la sesión. Si no se pone, se cierra la sesión al reiniciar el servidor. |
-| `DATABASE_FILE` | Ruta de la base de datos (por defecto `data/reservas.db`). Debe estar en un **disco persistente**. |
-| `PORT` | Puerto (por defecto 3000). |
-| `NODE_ENV=production` | Marca la cookie de sesión como `Secure` (requiere HTTPS). |
+| `SESSION_SECRET` | Texto aleatorio largo para firmar la sesión del panel. |
+| `DATABASE_FILE` | (Solo Node) ruta de la base de datos, por defecto `data/reservas.db`. |
+| `PORT` | (Solo Node) puerto, por defecto 3000. |
 
 ### Primer paso para Miguel
 
 La web arranca **sin horario**: hasta que Miguel lo pone, la reserva online aparece como «abrirá muy pronto» y se invita a escribirle por Instagram. Entrar en `/admin` → **Horario**, marcar los días y tramos y guardar. En **Ajustes** se añaden teléfono y WhatsApp, y en **Servicios** se revisan las duraciones (los valores iniciales son orientativos) y, si se quiere, los precios.
-
-### Probar con datos de ejemplo
-
-```bash
-npm run demo                                         # crea data/demo.db con un horario y citas de EJEMPLO
-DATABASE_FILE=data/demo.db ADMIN_PASSWORD=demo npm start
-npm test                                             # pruebas de disponibilidad, reservas y panel
-```
-
-## Publicarla
-
-Sirve cualquier hosting de Node con disco persistente (Railway, Render con *disk*, Fly.io con volumen, un VPS…):
-
-1. Comando de arranque: `npm start`.
-2. Variables: `ADMIN_PASSWORD`, `SESSION_SECRET`, `NODE_ENV=production` y `DATABASE_FILE` apuntando al volumen persistente (por ejemplo `/data/reservas.db`).
-3. Copia de seguridad: basta con copiar el fichero de la base de datos.
-
-> No vale un hosting solo estático (GitHub Pages, Netlify sin funciones): la agenda necesita el servidor.
 
 ## Pendiente de datos reales
 

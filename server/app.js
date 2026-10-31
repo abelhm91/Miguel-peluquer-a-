@@ -1,21 +1,9 @@
-import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
-import { readFile, stat } from 'node:fs/promises';
-import { extname, join, normalize } from 'node:path';
-import { getSettings, saveSettings, transaction, DEFAULT_SETTINGS } from './db.js';
-import { daySummary, freeSlots, hasAnyHours, isSlotFree, busyRanges, openIntervals } from './availability.js';
-import { addDays, isValidDate, nowInMadrid, toHHMM, toMinutes } from './time.js';
+// API de reservas. Funciona igual en Cloudflare Workers y en Node:
+// recibe un Request estándar y devuelve un Response.
 
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.webmanifest': 'application/manifest+json',
-  '.txt': 'text/plain; charset=utf-8',
-};
+import { getSettings, saveSettings } from './db.js';
+import { daySummary, freeSlots, hasAnyHours, busyRanges, openIntervals } from './availability.js';
+import { addDays, isValidDate, nowInMadrid, toHHMM, toMinutes } from './time.js';
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -28,38 +16,44 @@ const bad = (msg) => new HttpError(400, msg);
 
 /* ---------- helpers ---------- */
 
-function send(res, status, body, headers = {}) {
-  const isJson = typeof body !== 'string' && !Buffer.isBuffer(body);
-  res.writeHead(status, {
-    'content-type': isJson ? 'application/json; charset=utf-8' : 'text/plain; charset=utf-8',
-    'cache-control': 'no-store',
-    ...headers,
+function json(status, body, headers = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers },
   });
-  res.end(isJson ? JSON.stringify(body) : body);
 }
 
 async function readJson(req) {
-  const type = req.headers['content-type'] || '';
+  const type = req.headers.get('content-type') || '';
   if (!type.startsWith('application/json')) throw new HttpError(415, 'Se esperaba JSON.');
-  let size = 0;
-  const chunks = [];
-  for await (const c of req) {
-    size += c.length;
-    if (size > 32 * 1024) throw new HttpError(413, 'Petición demasiado grande.');
-    chunks.push(c);
-  }
+  const text = await req.text();
+  if (text.length > 32 * 1024) throw new HttpError(413, 'Petición demasiado grande.');
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+    return JSON.parse(text || '{}');
   } catch {
     throw bad('JSON no válido.');
   }
 }
 
 const str = (v, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+const cleanPhone = (v) => str(v, 30).replace(/[^\d+]/g, '');
 
-function cleanPhone(v) {
-  const p = str(v, 30).replace(/[^\d+]/g, '');
-  return p;
+function randomInt(n) {
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return a[0] % n;
+}
+
+function randomToken(bytes = 18) {
+  const a = new Uint8Array(bytes);
+  crypto.getRandomValues(a);
+  return b64url(a);
+}
+
+function b64url(bytes) {
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function newCode() {
@@ -68,6 +62,13 @@ function newCode() {
   let s = '';
   for (let i = 0; i < 6; i++) s += alphabet[randomInt(alphabet.length)];
   return s;
+}
+
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
 }
 
 function publicSettings(s) {
@@ -124,7 +125,7 @@ function bookingRow(r, { full = false } = {}) {
   return b;
 }
 
-/* ---------- rate limit (memoria) ---------- */
+/* ---------- límite de peticiones (memoria, por instancia) ---------- */
 
 function rateLimiter(limit, windowMs) {
   const hits = new Map();
@@ -139,44 +140,42 @@ function rateLimiter(limit, windowMs) {
   };
 }
 
-/* ---------- sesión de administración ---------- */
+/* ---------- sesión de administración (HMAC con Web Crypto) ---------- */
 
 function makeAuth({ adminPassword, sessionSecret }) {
-  const secret = sessionSecret || randomBytes(32).toString('hex');
+  const secret = sessionSecret || randomToken(32);
   const MAX_AGE = 60 * 60 * 24 * 14; // 14 días
+  const keyP = crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
 
-  const sign = (payload) => createHmac('sha256', secret).update(payload).digest('base64url');
-
-  function issue() {
-    const exp = Math.floor(Date.now() / 1000) + MAX_AGE;
-    const payload = `admin.${exp}`;
-    return `${payload}.${sign(payload)}`;
+  async function sign(payload) {
+    const sig = await crypto.subtle.sign('HMAC', await keyP, new TextEncoder().encode(payload));
+    return b64url(new Uint8Array(sig));
   }
 
-  function verify(token) {
+  async function issue() {
+    const payload = `admin.${Math.floor(Date.now() / 1000) + MAX_AGE}`;
+    return `${payload}.${await sign(payload)}`;
+  }
+
+  async function verify(token) {
     if (!token) return false;
     const i = token.lastIndexOf('.');
     if (i < 0) return false;
     const payload = token.slice(0, i);
-    const sig = Buffer.from(token.slice(i + 1));
-    const good = Buffer.from(sign(payload));
-    if (sig.length !== good.length || !timingSafeEqual(sig, good)) return false;
-    const exp = Number(payload.split('.')[1]);
-    return exp > Date.now() / 1000;
+    if (!safeEqual(token.slice(i + 1), await sign(payload))) return false;
+    return Number(payload.split('.')[1]) > Date.now() / 1000;
   }
 
-  function checkPassword(pw) {
+  async function checkPassword(pw) {
     if (!adminPassword || typeof pw !== 'string') return false;
-    const a = createHmac('sha256', secret).update(pw).digest();
-    const b = createHmac('sha256', secret).update(adminPassword).digest();
-    return timingSafeEqual(a, b);
+    return safeEqual(await sign(`pw:${pw}`), await sign(`pw:${adminPassword}`));
   }
 
   return { issue, verify, checkPassword, MAX_AGE, enabled: !!adminPassword };
 }
 
 function getCookie(req, name) {
-  const raw = req.headers.cookie || '';
+  const raw = req.headers.get('cookie') || '';
   for (const part of raw.split(';')) {
     const [k, ...v] = part.trim().split('=');
     if (k === name) return decodeURIComponent(v.join('='));
@@ -201,9 +200,7 @@ function validateHours(hours) {
     });
     ranges.sort((x, y) => toMinutes(x[0]) - toMinutes(y[0]));
     for (let j = 1; j < ranges.length; j++) {
-      if (toMinutes(ranges[j][0]) < toMinutes(ranges[j - 1][1])) {
-        throw bad(`Los tramos del día ${i + 1} se solapan.`);
-      }
+      if (toMinutes(ranges[j][0]) < toMinutes(ranges[j - 1][1])) throw bad(`Los tramos del día ${i + 1} se solapan.`);
     }
     return ranges;
   });
@@ -213,9 +210,7 @@ function validateService(body) {
   const name = str(body.name, 80);
   const duration = Number(body.duration);
   if (!name) throw bad('El servicio necesita un nombre.');
-  if (!Number.isInteger(duration) || duration < 10 || duration > 600) {
-    throw bad('La duración debe estar entre 10 y 600 minutos.');
-  }
+  if (!Number.isInteger(duration) || duration < 10 || duration > 600) throw bad('La duración debe estar entre 10 y 600 minutos.');
   return {
     category: str(body.category, 60),
     name,
@@ -223,27 +218,34 @@ function validateService(body) {
     duration,
     price: str(body.price, 40),
     active: body.active === false ? 0 : 1,
-    sort: Number.isInteger(body.sort) ? body.sort : 0,
   };
 }
 
+// Inserta la cita solo si en ese mismo instante no hay otra cita ni bloqueo que se solape.
+// Es una única sentencia, así que es atómica también en D1 (sin transacciones).
+const INSERT_IF_FREE = `
+  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source)
+  SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  WHERE NOT EXISTS (SELECT 1 FROM bookings WHERE date = ? AND status = 'confirmed' AND start_min < ? AND end_min > ?)
+    AND NOT EXISTS (SELECT 1 FROM blocks WHERE date = ? AND start_min < ? AND end_min > ?)`;
+
+const INSERT_ANY = `
+  INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
 /* ---------- aplicación ---------- */
 
-export function createApp({ db, publicDir, adminPassword, sessionSecret, secureCookies = false, now = () => nowInMadrid() }) {
+export function createApi({ db, adminPassword, sessionSecret, secureCookies = false, now = () => nowInMadrid() }) {
   const auth = makeAuth({ adminPassword, sessionSecret });
   const bookingLimiter = rateLimiter(6, 60 * 60 * 1000);
   const loginLimiter = rateLimiter(10, 15 * 60 * 1000);
 
   const isAdmin = (req) => auth.verify(getCookie(req, 'pentinats_admin'));
-  const requireAdmin = (req) => {
-    if (!isAdmin(req)) throw new HttpError(401, 'Inicia sesión para continuar.');
-  };
+  const getService = (id) => db.get('SELECT * FROM services WHERE id = ?', id);
 
-  const getService = (id) => db.prepare('SELECT * FROM services WHERE id = ?').get(id);
-
-  function createBooking(body, { source, allowAnyTime = false }) {
-    const settings = getSettings(db);
-    const service = getService(Number(body.serviceId));
+  async function createBooking(body, { source }) {
+    const settings = await getSettings(db);
+    const service = await getService(Number(body.serviceId) || 0);
     if (!service || (!service.active && source === 'web')) throw bad('Ese servicio no está disponible.');
     const date = str(body.date, 10);
     if (!isValidDate(date)) throw bad('Elige un día.');
@@ -254,295 +256,263 @@ export function createApp({ db, publicDir, adminPassword, sessionSecret, secureC
     const email = str(body.email, 120);
     const notes = str(body.notes, 600);
     if (name.length < 2) throw bad('Escribe tu nombre.');
-    if (source === 'web' && phone.replace(/\D/g, '').length < 9) {
-      throw bad('Escribe un teléfono válido para que Miguel pueda avisarte.');
-    }
+    if (source === 'web' && phone.replace(/\D/g, '').length < 9) throw bad('Escribe un teléfono válido para que Miguel pueda avisarte.');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw bad('Revisa el correo electrónico.');
-    const duration = Number(body.duration) > 0 && source === 'admin' ? Number(body.duration) : service.duration;
+    const custom = Number(body.duration);
+    const duration = source === 'admin' && Number.isInteger(custom) && custom >= 10 && custom <= 600 ? custom : service.duration;
+    const end = start + duration;
 
-    return transaction(db, () => {
-      if (allowAnyTime) {
-        const clash = busyRanges(db, date).some(([b0, b1]) => start < b1 && b0 < start + duration);
-        if (clash && !body.force) throw new HttpError(409, 'Esa hora se solapa con otra cita o un bloqueo.');
-      } else if (!isSlotFree(db, settings, date, start, duration, now())) {
-        throw new HttpError(409, 'Vaya, esa hora acaba de ocuparse. Elige otra, por favor.');
+    if (source === 'web') {
+      const slots = await freeSlots(db, settings, date, duration, now());
+      if (!slots.includes(start)) throw new HttpError(409, 'Vaya, esa hora acaba de ocuparse. Elige otra, por favor.');
+    } else if (end > 1440) {
+      throw bad('La cita no puede pasar de medianoche.');
+    }
+
+    const force = source === 'admin' && body.force === true;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const code = newCode();
+      const token = randomToken();
+      const values = [code, token, service.id, service.name, date, start, end, name, phone, email, notes, source];
+      let r;
+      try {
+        r = force ? await db.run(INSERT_ANY, ...values) : await db.run(INSERT_IF_FREE, ...values, date, end, start, date, end, start);
+      } catch (e) {
+        if (/UNIQUE/i.test(String(e?.message))) continue; // código repetido: probar otro
+        throw e;
       }
-      let code;
-      do code = newCode();
-      while (db.prepare('SELECT 1 FROM bookings WHERE code = ?').get(code));
-      const token = randomBytes(18).toString('base64url');
-      db.prepare(
-        `INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(code, token, service.id, service.name, date, start, start + duration, name, phone, email, notes, source);
-      const row = db.prepare('SELECT * FROM bookings WHERE code = ?').get(code);
+      if (r.changes !== 1) {
+        throw new HttpError(409, source === 'web' ? 'Vaya, esa hora acaba de ocuparse. Elige otra, por favor.' : 'Esa hora se solapa con otra cita o un bloqueo.');
+      }
+      const row = await db.get('SELECT * FROM bookings WHERE code = ?', code);
       return { ...bookingRow(row, { full: source === 'admin' }), token };
-    });
+    }
+    throw new HttpError(500, 'No se ha podido guardar la cita. Inténtalo de nuevo.');
   }
 
-  /* ----- rutas API ----- */
-
-  async function api(req, res, url) {
+  async function route(req, url) {
     const path = url.pathname;
     const m = req.method;
-    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '';
+    const ip = req.headers.get('cf-connecting-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'local';
+    let mm;
 
-    // Público
+    /* ----- público ----- */
+
     if (m === 'GET' && path === '/api/info') {
-      const settings = getSettings(db);
-      const services = db.prepare('SELECT * FROM services WHERE active = 1 ORDER BY sort, id').all().map(serviceRow);
+      const [settings, services] = await Promise.all([
+        getSettings(db),
+        db.all('SELECT * FROM services WHERE active = 1 ORDER BY sort, id'),
+      ]);
       const n = now();
-      return send(res, 200, { settings: publicSettings(settings), services, today: n.date, nowMinutes: n.minutes });
+      return json(200, { settings: publicSettings(settings), services: services.map(serviceRow), today: n.date, nowMinutes: n.minutes });
     }
 
     if (m === 'GET' && path === '/api/days') {
-      const settings = getSettings(db);
-      const service = getService(Number(url.searchParams.get('service')));
+      const settings = await getSettings(db);
+      const service = await getService(Number(url.searchParams.get('service')) || 0);
       if (!service || !service.active) throw bad('Servicio no válido.');
       const n = now();
       const from = isValidDate(url.searchParams.get('from')) ? url.searchParams.get('from') : n.date;
       const count = Math.min(62, Math.max(1, Number(url.searchParams.get('n')) || 14));
-      return send(res, 200, { days: daySummary(db, settings, from, count, service.duration, n) });
+      return json(200, { days: await daySummary(db, settings, from, count, service.duration, n) });
     }
 
     if (m === 'GET' && path === '/api/slots') {
-      const settings = getSettings(db);
-      const service = getService(Number(url.searchParams.get('service')));
+      const settings = await getSettings(db);
+      const service = await getService(Number(url.searchParams.get('service')) || 0);
       const date = url.searchParams.get('date');
       if (!service || !service.active) throw bad('Servicio no válido.');
       if (!isValidDate(date)) throw bad('Fecha no válida.');
-      const slots = freeSlots(db, settings, date, service.duration, now()).map(toHHMM);
-      return send(res, 200, { date, slots });
+      const slots = (await freeSlots(db, settings, date, service.duration, now())).map(toHHMM);
+      return json(200, { date, slots });
     }
 
     if (m === 'POST' && path === '/api/bookings') {
       if (!bookingLimiter(ip)) throw new HttpError(429, 'Demasiadas reservas seguidas. Inténtalo más tarde.');
       const body = await readJson(req);
-      if (str(body.website)) return send(res, 201, { ok: true }); // trampa anti-spam
-      const b = createBooking(body, { source: 'web' });
-      return send(res, 201, b);
+      if (str(body.website)) return json(201, { ok: true }); // trampa anti-spam
+      return json(201, await createBooking(body, { source: 'web' }));
     }
 
-    let mm = path.match(/^\/api\/bookings\/([A-Z0-9]{6})$/);
-    if (m === 'GET' && mm) {
-      const row = db.prepare('SELECT * FROM bookings WHERE code = ?').get(mm[1]);
-      if (!row || row.token !== url.searchParams.get('t')) throw new HttpError(404, 'No encontramos esa reserva.');
-      return send(res, 200, bookingRow(row));
+    if (m === 'GET' && (mm = path.match(/^\/api\/bookings\/([A-Z0-9]{6})$/))) {
+      const row = await db.get('SELECT * FROM bookings WHERE code = ?', mm[1]);
+      if (!row || !safeEqual(row.token, url.searchParams.get('t') || '')) throw new HttpError(404, 'No encontramos esa reserva.');
+      return json(200, bookingRow(row));
     }
 
-    mm = path.match(/^\/api\/bookings\/([A-Z0-9]{6})\/cancel$/);
-    if (m === 'POST' && mm) {
+    if (m === 'POST' && (mm = path.match(/^\/api\/bookings\/([A-Z0-9]{6})\/cancel$/))) {
       const body = await readJson(req);
-      const row = db.prepare('SELECT * FROM bookings WHERE code = ?').get(mm[1]);
-      if (!row || row.token !== body.token) throw new HttpError(404, 'No encontramos esa reserva.');
+      const row = await db.get('SELECT * FROM bookings WHERE code = ?', mm[1]);
+      if (!row || !safeEqual(row.token, String(body.token || ''))) throw new HttpError(404, 'No encontramos esa reserva.');
       if (row.status === 'confirmed') {
-        db.prepare("UPDATE bookings SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?").run(row.id);
+        await db.run("UPDATE bookings SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?", row.id);
       }
-      const updated = db.prepare('SELECT * FROM bookings WHERE id = ?').get(row.id);
-      return send(res, 200, bookingRow(updated));
+      return json(200, bookingRow(await db.get('SELECT * FROM bookings WHERE id = ?', row.id)));
     }
 
-    // Administración
+    /* ----- administración ----- */
+
     if (m === 'POST' && path === '/api/admin/login') {
-      if (!auth.enabled) throw new HttpError(503, 'El panel no está activado: falta la variable ADMIN_PASSWORD en el servidor.');
+      if (!auth.enabled) throw new HttpError(503, 'El panel no está activado: falta configurar ADMIN_PASSWORD en el servidor.');
       if (!loginLimiter(ip)) throw new HttpError(429, 'Demasiados intentos. Espera unos minutos.');
       const body = await readJson(req);
-      if (!auth.checkPassword(body.password)) throw new HttpError(401, 'Contraseña incorrecta.');
-      const cookie = `pentinats_admin=${auth.issue()}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${auth.MAX_AGE}${secureCookies ? '; Secure' : ''}`;
-      return send(res, 200, { ok: true }, { 'set-cookie': cookie });
+      if (!(await auth.checkPassword(body.password))) throw new HttpError(401, 'Contraseña incorrecta.');
+      const cookie = `pentinats_admin=${await auth.issue()}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${auth.MAX_AGE}${secureCookies ? '; Secure' : ''}`;
+      return json(200, { ok: true }, { 'set-cookie': cookie });
     }
 
     if (m === 'POST' && path === '/api/admin/logout') {
-      return send(res, 200, { ok: true }, { 'set-cookie': 'pentinats_admin=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0' });
+      return json(200, { ok: true }, { 'set-cookie': `pentinats_admin=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secureCookies ? '; Secure' : ''}` });
     }
 
     if (m === 'GET' && path === '/api/admin/session') {
-      return send(res, 200, { loggedIn: isAdmin(req), enabled: auth.enabled });
+      return json(200, { loggedIn: await isAdmin(req), enabled: auth.enabled });
     }
 
-    if (path.startsWith('/api/admin/')) {
-      requireAdmin(req);
-      // Mutaciones solo con JSON (además de SameSite=Strict) para evitar CSRF.
+    if (!path.startsWith('/api/admin/')) throw new HttpError(404, 'No encontrado.');
+    if (!(await isAdmin(req))) throw new HttpError(401, 'Inicia sesión para continuar.');
+    // Las mutaciones exigen JSON y la cookie es SameSite=Strict: protección frente a CSRF.
 
-      if (m === 'GET' && path === '/api/admin/overview') {
-        const settings = getSettings(db);
-        const services = db.prepare('SELECT * FROM services ORDER BY sort, id').all().map(serviceRow);
-        const n = now();
-        return send(res, 200, { settings, services, today: n.date, nowMinutes: n.minutes });
+    if (m === 'GET' && path === '/api/admin/overview') {
+      const [settings, services] = await Promise.all([getSettings(db), db.all('SELECT * FROM services ORDER BY sort, id')]);
+      const n = now();
+      return json(200, { settings, services: services.map(serviceRow), today: n.date, nowMinutes: n.minutes });
+    }
+
+    if (m === 'GET' && path === '/api/admin/day') {
+      const date = url.searchParams.get('date');
+      if (!isValidDate(date)) throw bad('Fecha no válida.');
+      const [settings, bookings, blocks] = await Promise.all([
+        getSettings(db),
+        db.all('SELECT * FROM bookings WHERE date = ? ORDER BY start_min, id', date),
+        db.all('SELECT * FROM blocks WHERE date = ? ORDER BY start_min', date),
+      ]);
+      return json(200, {
+        date,
+        open: openIntervals(settings, date).map(([a, b]) => [toHHMM(a), toHHMM(b)]),
+        bookings: bookings.map((r) => bookingRow(r, { full: true })),
+        blocks: blocks.map((r) => ({ id: r.id, date: r.date, start: toHHMM(r.start_min), end: toHHMM(Math.min(r.end_min, 1440)), reason: r.reason })),
+      });
+    }
+
+    if (m === 'GET' && path === '/api/admin/upcoming') {
+      const n = now();
+      const to = addDays(n.date, Math.min(365, Number(url.searchParams.get('days')) || 60));
+      const rows = await db.all(
+        "SELECT * FROM bookings WHERE status = 'confirmed' AND date >= ? AND date <= ? ORDER BY date, start_min LIMIT 500",
+        n.date,
+        to
+      );
+      return json(200, { bookings: rows.map((r) => bookingRow(r, { full: true })) });
+    }
+
+    if (m === 'POST' && path === '/api/admin/bookings') {
+      return json(201, await createBooking(await readJson(req), { source: 'admin' }));
+    }
+
+    if (m === 'POST' && (mm = path.match(/^\/api\/admin\/bookings\/(\d+)\/cancel$/))) {
+      await readJson(req);
+      await db.run("UPDATE bookings SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ? AND status = 'confirmed'", Number(mm[1]));
+      return json(200, { ok: true });
+    }
+
+    if (m === 'POST' && (mm = path.match(/^\/api\/admin\/bookings\/(\d+)\/restore$/))) {
+      await readJson(req);
+      const row = await db.get('SELECT * FROM bookings WHERE id = ?', Number(mm[1]));
+      if (!row) throw new HttpError(404, 'No existe esa cita.');
+      const busy = await busyRanges(db, row.date, { excludeBookingId: row.id });
+      if (busy.some(([b0, b1]) => row.start_min < b1 && b0 < row.end_min)) {
+        throw new HttpError(409, 'No se puede recuperar: ese hueco ya está ocupado.');
       }
+      await db.run("UPDATE bookings SET status = 'confirmed', cancelled_at = NULL WHERE id = ?", row.id);
+      return json(200, { ok: true });
+    }
 
-      if (m === 'GET' && path === '/api/admin/day') {
-        const date = url.searchParams.get('date');
-        if (!isValidDate(date)) throw bad('Fecha no válida.');
-        const settings = getSettings(db);
-        const bookings = db
-          .prepare('SELECT * FROM bookings WHERE date = ? ORDER BY start_min, id')
-          .all(date)
-          .map((r) => bookingRow(r, { full: true }));
-        const blocks = db
-          .prepare('SELECT * FROM blocks WHERE date = ? ORDER BY start_min')
-          .all(date)
-          .map((r) => ({ id: r.id, date: r.date, start: toHHMM(r.start_min), end: toHHMM(Math.min(r.end_min, 1440)), reason: r.reason }));
-        const open = openIntervals(settings, date).map(([a, b]) => [toHHMM(a), toHHMM(b)]);
-        return send(res, 200, { date, open, bookings, blocks });
-      }
+    if (m === 'POST' && path === '/api/admin/blocks') {
+      const body = await readJson(req);
+      const date = str(body.date, 10);
+      if (!isValidDate(date)) throw bad('Elige un día.');
+      const allDay = !!body.allDay;
+      const a = allDay ? 0 : toMinutes(str(body.start, 5));
+      const b = allDay ? 1440 : toMinutes(str(body.end, 5));
+      if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) throw bad('Revisa las horas del bloqueo.');
+      const days = Math.min(60, Math.max(1, Number(body.days) || 1));
+      const sql = 'INSERT INTO blocks (date, start_min, end_min, reason) VALUES (?, ?, ?, ?)';
+      await db.batch(Array.from({ length: days }, (_, i) => [sql, [addDays(date, i), a, b, str(body.reason, 120)]]));
+      return json(201, { ok: true });
+    }
 
-      if (m === 'GET' && path === '/api/admin/upcoming') {
-        const n = now();
-        const to = addDays(n.date, Math.min(365, Number(url.searchParams.get('days')) || 60));
-        const rows = db
-          .prepare(
-            "SELECT * FROM bookings WHERE status = 'confirmed' AND date >= ? AND date <= ? ORDER BY date, start_min LIMIT 500"
-          )
-          .all(n.date, to)
-          .map((r) => bookingRow(r, { full: true }));
-        const counts = db
-          .prepare("SELECT date, COUNT(*) AS n FROM bookings WHERE status = 'confirmed' AND date >= ? AND date <= ? GROUP BY date")
-          .all(n.date, to);
-        return send(res, 200, { bookings: rows, counts });
-      }
+    if (m === 'DELETE' && (mm = path.match(/^\/api\/admin\/blocks\/(\d+)$/))) {
+      await db.run('DELETE FROM blocks WHERE id = ?', Number(mm[1]));
+      return json(200, { ok: true });
+    }
 
-      if (m === 'POST' && path === '/api/admin/bookings') {
-        const body = await readJson(req);
-        const b = createBooking(body, { source: 'admin', allowAnyTime: true });
-        return send(res, 201, b);
-      }
-
-      mm = path.match(/^\/api\/admin\/bookings\/(\d+)\/cancel$/);
-      if (m === 'POST' && mm) {
-        await readJson(req);
-        db.prepare("UPDATE bookings SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ? AND status = 'confirmed'").run(Number(mm[1]));
-        return send(res, 200, { ok: true });
-      }
-
-      mm = path.match(/^\/api\/admin\/bookings\/(\d+)\/restore$/);
-      if (m === 'POST' && mm) {
-        await readJson(req);
-        const row = db.prepare('SELECT * FROM bookings WHERE id = ?').get(Number(mm[1]));
-        if (!row) throw new HttpError(404, 'No existe esa cita.');
-        const clash = busyRanges(db, row.date, { excludeBookingId: row.id }).some(
-          ([b0, b1]) => row.start_min < b1 && b0 < row.end_min
-        );
-        if (clash) throw new HttpError(409, 'No se puede recuperar: ese hueco ya está ocupado.');
-        db.prepare("UPDATE bookings SET status = 'confirmed', cancelled_at = NULL WHERE id = ?").run(row.id);
-        return send(res, 200, { ok: true });
-      }
-
-      if (m === 'POST' && path === '/api/admin/blocks') {
-        const body = await readJson(req);
-        const date = str(body.date, 10);
-        if (!isValidDate(date)) throw bad('Elige un día.');
-        const allDay = !!body.allDay;
-        const a = allDay ? 0 : toMinutes(str(body.start, 5));
-        const b = allDay ? 1440 : toMinutes(str(body.end, 5));
-        if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) throw bad('Revisa las horas del bloqueo.');
-        const days = Math.min(60, Math.max(1, Number(body.days) || 1));
-        const ins = db.prepare('INSERT INTO blocks (date, start_min, end_min, reason) VALUES (?, ?, ?, ?)');
-        transaction(db, () => {
-          for (let i = 0; i < days; i++) ins.run(addDays(date, i), a, b, str(body.reason, 120));
-        });
-        return send(res, 201, { ok: true });
-      }
-
-      mm = path.match(/^\/api\/admin\/blocks\/(\d+)$/);
-      if (m === 'DELETE' && mm) {
-        db.prepare('DELETE FROM blocks WHERE id = ?').run(Number(mm[1]));
-        return send(res, 200, { ok: true });
-      }
-
-      if (m === 'PUT' && path === '/api/admin/settings') {
-        const body = await readJson(req);
-        const patch = {};
-        if ('hours' in body) patch.hours = validateHours(body.hours);
-        for (const k of ['phone', 'whatsapp']) if (k in body) patch[k] = cleanPhone(body[k]);
-        for (const k of ['email', 'instagram', 'address', 'city']) if (k in body) patch[k] = str(body[k], 120);
-        if ('bookingNote' in body) patch.bookingNote = str(body.bookingNote, 400);
-        const ints = { slotStep: [5, 120], minNoticeMinutes: [0, 60 * 24 * 7], maxDaysAhead: [1, 400] };
-        for (const [k, [lo, hi]] of Object.entries(ints)) {
-          if (k in body) {
-            const v = Number(body[k]);
-            if (!Number.isInteger(v) || v < lo || v > hi) throw bad(`Valor no válido para ${k}.`);
-            patch[k] = v;
-          }
+    if (m === 'PUT' && path === '/api/admin/settings') {
+      const body = await readJson(req);
+      const patch = {};
+      if ('hours' in body) patch.hours = validateHours(body.hours);
+      for (const k of ['phone', 'whatsapp']) if (k in body) patch[k] = cleanPhone(body[k]);
+      for (const k of ['email', 'instagram', 'address', 'city']) if (k in body) patch[k] = str(body[k], 120);
+      if ('bookingNote' in body) patch.bookingNote = str(body.bookingNote, 400);
+      const ints = { slotStep: [5, 120], minNoticeMinutes: [0, 60 * 24 * 7], maxDaysAhead: [1, 400] };
+      for (const [k, [lo, hi]] of Object.entries(ints)) {
+        if (k in body) {
+          const v = Number(body[k]);
+          if (!Number.isInteger(v) || v < lo || v > hi) throw bad(`Valor no válido para ${k}.`);
+          patch[k] = v;
         }
-        saveSettings(db, patch);
-        return send(res, 200, { settings: getSettings(db) });
       }
+      await saveSettings(db, patch);
+      return json(200, { settings: await getSettings(db) });
+    }
 
-      if (m === 'POST' && path === '/api/admin/services') {
-        const s = validateService(await readJson(req));
-        const max = db.prepare('SELECT COALESCE(MAX(sort), 0) AS m FROM services').get().m;
-        const r = db
-          .prepare('INSERT INTO services (category, name, description, duration, price, active, sort) VALUES (?, ?, ?, ?, ?, ?, ?)')
-          .run(s.category, s.name, s.description, s.duration, s.price, s.active, max + 1);
-        return send(res, 201, serviceRow(getService(Number(r.lastInsertRowid))));
-      }
+    if (m === 'POST' && path === '/api/admin/services') {
+      const s = validateService(await readJson(req));
+      const max = (await db.get('SELECT COALESCE(MAX(sort), 0) AS m FROM services')).m;
+      const r = await db.run(
+        'INSERT INTO services (category, name, description, duration, price, active, sort) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        s.category, s.name, s.description, s.duration, s.price, s.active, max + 1
+      );
+      return json(201, serviceRow(await getService(r.lastRowId)));
+    }
 
-      mm = path.match(/^\/api\/admin\/services\/(\d+)$/);
-      if (m === 'PUT' && mm) {
-        const cur = getService(Number(mm[1]));
+    if ((mm = path.match(/^\/api\/admin\/services\/(\d+)$/))) {
+      const id = Number(mm[1]);
+      if (m === 'PUT') {
+        const cur = await getService(id);
         if (!cur) throw new HttpError(404, 'No existe ese servicio.');
         const body = await readJson(req);
         const s = validateService({ ...serviceRow(cur), ...body });
-        db.prepare('UPDATE services SET category = ?, name = ?, description = ?, duration = ?, price = ?, active = ?, sort = ? WHERE id = ?').run(
-          s.category, s.name, s.description, s.duration, s.price, s.active, Number.isInteger(body.sort) ? body.sort : cur.sort, cur.id
+        const sort = Number.isInteger(body.sort) ? body.sort : cur.sort;
+        await db.run(
+          'UPDATE services SET category = ?, name = ?, description = ?, duration = ?, price = ?, active = ?, sort = ? WHERE id = ?',
+          s.category, s.name, s.description, s.duration, s.price, s.active, sort, id
         );
-        return send(res, 200, serviceRow(getService(cur.id)));
+        return json(200, serviceRow(await getService(id)));
       }
-      if (m === 'DELETE' && mm) {
+      if (m === 'DELETE') {
         // Las citas guardan el nombre del servicio, así que borrarlo no las rompe.
-        db.prepare('UPDATE bookings SET service_id = NULL WHERE service_id = ?').run(Number(mm[1]));
-        db.prepare('DELETE FROM services WHERE id = ?').run(Number(mm[1]));
-        return send(res, 200, { ok: true });
+        await db.batch([
+          ['UPDATE bookings SET service_id = NULL WHERE service_id = ?', [id]],
+          ['DELETE FROM services WHERE id = ?', [id]],
+        ]);
+        return json(200, { ok: true });
       }
     }
 
     throw new HttpError(404, 'No encontrado.');
   }
 
-  /* ----- estáticos ----- */
-
-  const PAGES = { '/': 'index.html', '/admin': 'admin.html', '/cita': 'cita.html' };
-
-  async function serveStatic(req, res, url) {
-    let rel = PAGES[url.pathname.replace(/\/+$/, '') || '/'] || url.pathname.slice(1);
-    const file = normalize(join(publicDir, decodeURIComponent(rel)));
-    if (!file.startsWith(normalize(publicDir))) throw new HttpError(404, 'No encontrado.');
-    let info;
+  /** Devuelve la respuesta de la API, o null si la ruta no es de la API. */
+  return async function handleApi(req) {
+    const url = new URL(req.url);
+    if (!url.pathname.startsWith('/api/')) return null;
     try {
-      info = await stat(file);
-    } catch {
-      info = null;
-    }
-    if (!info || !info.isFile()) {
-      const notFound = await readFile(join(publicDir, '404.html')).catch(() => null);
-      res.writeHead(404, { 'content-type': MIME['.html'] });
-      return res.end(notFound || 'No encontrado');
-    }
-    const ext = extname(file);
-    const body = await readFile(file);
-    res.writeHead(200, {
-      'content-type': MIME[ext] || 'application/octet-stream',
-      'cache-control': ext === '.html' ? 'no-cache' : 'public, max-age=3600',
-      'x-content-type-options': 'nosniff',
-      'referrer-policy': 'same-origin',
-      ...(ext === '.html' ? { 'x-frame-options': 'DENY' } : {}),
-    });
-    res.end(req.method === 'HEAD' ? undefined : body);
-  }
-
-  return async function handler(req, res) {
-    const url = new URL(req.url, 'http://localhost');
-    try {
-      if (url.pathname.startsWith('/api/')) return await api(req, res, url);
-      if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'Método no permitido.');
-      return await serveStatic(req, res, url);
+      return await route(req, url);
     } catch (err) {
-      if (err instanceof HttpError) return send(res, err.status, { error: err.message });
+      if (err instanceof HttpError) return json(err.status, { error: err.message });
       console.error(err);
-      return send(res, 500, { error: 'Ha fallado algo en el servidor. Inténtalo de nuevo.' });
+      return json(500, { error: 'Ha fallado algo en el servidor. Inténtalo de nuevo.' });
     }
   };
 }
-
-export { DEFAULT_SETTINGS };

@@ -13,36 +13,33 @@ export function hasAnyHours(settings) {
   return (settings.hours ?? []).some((d) => d && d.length > 0);
 }
 
-/** Ocupación (citas confirmadas y bloqueos) de un día. */
-export function busyRanges(db, date, { excludeBookingId } = {}) {
-  const b = db
-    .prepare("SELECT id, start_min, end_min FROM bookings WHERE date = ? AND status = 'confirmed'")
-    .all(date)
-    .filter((r) => r.id !== excludeBookingId)
-    .map((r) => [r.start_min, r.end_min]);
-  const k = db
-    .prepare('SELECT start_min, end_min FROM blocks WHERE date = ?')
-    .all(date)
-    .map((r) => [r.start_min, r.end_min]);
-  return [...b, ...k];
+/** Ocupación (citas confirmadas y bloqueos) entre dos fechas, agrupada por día. */
+export async function busyByDate(db, from, to, { excludeBookingId } = {}) {
+  const [b, k] = await Promise.all([
+    db.all("SELECT id, date, start_min, end_min FROM bookings WHERE date >= ? AND date <= ? AND status = 'confirmed'", from, to),
+    db.all('SELECT date, start_min, end_min FROM blocks WHERE date >= ? AND date <= ?', from, to),
+  ]);
+  const map = new Map();
+  for (const r of [...b.filter((r) => r.id !== excludeBookingId), ...k]) {
+    if (!map.has(r.date)) map.set(r.date, []);
+    map.get(r.date).push([r.start_min, r.end_min]);
+  }
+  return map;
+}
+
+export async function busyRanges(db, date, opts) {
+  return (await busyByDate(db, date, date, opts)).get(date) ?? [];
 }
 
 const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1;
 
-/**
- * Horas de inicio libres para un servicio de `duration` minutos en `date`.
- * Devuelve minutos del día.
- */
-export function freeSlots(db, settings, date, duration, now = nowInMadrid()) {
+/** Horas de inicio libres (minutos del día), con la ocupación ya cargada. */
+export function computeSlots(settings, date, duration, busy, now = nowInMadrid()) {
   const delta = daysBetween(now.date, date);
   if (delta < 0 || delta > settings.maxDaysAhead) return [];
   const step = Math.max(5, Number(settings.slotStep) || 15);
-  const earliest = delta === 0 ? now.minutes + settings.minNoticeMinutes : -Infinity;
-  // Si la antelación mínima cruza la medianoche, aplica también a mañana.
-  const earliestTomorrow = now.minutes + settings.minNoticeMinutes - 1440;
-  const minStart = delta === 0 ? earliest : delta === 1 ? earliestTomorrow : -Infinity;
-
-  const busy = busyRanges(db, date);
+  // La antelación mínima cuenta desde ahora, aunque cruce la medianoche.
+  const minStart = now.minutes + settings.minNoticeMinutes - delta * 1440;
   const out = [];
   for (const [open, close] of openIntervals(settings, date)) {
     for (let t = open; t + duration <= close; t += step) {
@@ -54,18 +51,19 @@ export function freeSlots(db, settings, date, duration, now = nowInMadrid()) {
   return out;
 }
 
-/** true si [start, start+duration) cabe en el horario y no choca con nada. */
-export function isSlotFree(db, settings, date, start, duration, now = nowInMadrid()) {
-  return freeSlots(db, settings, date, duration, now).includes(start);
+export async function freeSlots(db, settings, date, duration, now = nowInMadrid()) {
+  return computeSlots(settings, date, duration, await busyRanges(db, date), now);
 }
 
 /** Resumen de los próximos `n` días: cuántos huecos libres tiene cada uno. */
-export function daySummary(db, settings, from, n, duration, now = nowInMadrid()) {
+export async function daySummary(db, settings, from, n, duration, now = nowInMadrid()) {
+  const to = addDays(from, n - 1);
+  const busy = await busyByDate(db, from, to);
   const out = [];
   for (let i = 0; i < n; i++) {
     const date = addDays(from, i);
     const open = openIntervals(settings, date).length > 0;
-    out.push({ date, open, free: open ? freeSlots(db, settings, date, duration, now).length : 0 });
+    out.push({ date, open, free: open ? computeSlots(settings, date, duration, busy.get(date) ?? [], now).length : 0 });
   }
   return out;
 }

@@ -5,3 +5,5 @@ data/*.db-*
 .impeccable/review/
 .impeccable/questions/
 .impeccable/config.local.json
+.dev.vars
+.wrangler/
