@@ -7,3 +7,4 @@ data/*.db-*
 .impeccable/config.local.json
 .dev.vars
 .wrangler/
+.impeccable/live/
