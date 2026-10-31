@@ -100,8 +100,12 @@ function renderServices() {
       for (const en of entries) {
         if (en.isIntersecting) {
           tabs.forEach((t) => t.setAttribute('aria-current', String(t.hash === `#${en.target.id}`)));
+          // Desplaza solo la fila de pestañas (en horizontal), nunca la página.
           const active = tabs.find((t) => t.hash === `#${en.target.id}`);
-          active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          const row = $('#cat-tabs');
+          if (active && (active.offsetLeft < row.scrollLeft || active.offsetLeft + active.offsetWidth > row.scrollLeft + row.clientWidth)) {
+            row.scrollTo({ left: active.offsetLeft - 16, behavior: 'smooth' });
+          }
         }
       }
     },
@@ -559,7 +563,8 @@ function bindStep(step) {
       })
     );
     const sel = $('[aria-pressed="true"].day', content);
-    sel?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const strip = $('.days', content);
+    if (sel && strip && sel.offsetLeft + sel.offsetWidth > strip.clientWidth) strip.scrollLeft = sel.offsetLeft - 8;
   }
   if (step === 'details') {
     const form = $('#details-form');

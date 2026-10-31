@@ -511,6 +511,7 @@
 }
 
 .cats__scroll {
+  position: relative;
   display: flex;
   gap: 8px;
   overflow-x: auto;
@@ -1304,6 +1305,7 @@
 }
 
 .days {
+  position: relative;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(64px, 1fr);
