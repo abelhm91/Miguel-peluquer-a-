@@ -75,6 +75,7 @@ async function boot() {
   }
   state.services = state.info.services;
   renderServices();
+  renderFallas();
   renderHours();
   renderStatus();
   renderContact();
@@ -101,59 +102,104 @@ function groups() {
 
 const slug = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-');
 
+function svcRow(sv) {
+  return `
+    <li class="svc">
+      <div class="svc__name">${esc(sv.name)}</div>
+      ${sv.description ? `<p class="svc__desc">${esc(sv.description)}</p>` : ''}
+      <div class="svc__facts"><span>${duration(sv.duration)}</span>${sv.price ? `<span class="svc__price">${esc(sv.price)}</span>` : ''}</div>
+      <button class="btn btn--ghost btn--small" type="button" data-book="${sv.id}" aria-label="Reservar ${esc(sv.name)}">Reservar</button>
+    </li>`;
+}
+
+/** Reparte los servicios en las temporadas de la página (Falleras va en el capítulo de Fallas). */
 function renderServices() {
-  const gs = groups();
-  if (!gs.length) {
-    $('#services').innerHTML = `<p class="services-empty">Miguel está preparando la lista de servicios. Mientras, puedes escribirle por Instagram.</p>`;
-    $('.cats').hidden = true;
+  const lists = $$('[data-cats]');
+  const claimed = new Set(['Falleras', ...lists.flatMap((l) => l.dataset.cats.split(','))]);
+  for (const ul of lists) {
+    const cats = ul.dataset.cats.split(',');
+    const items = state.services.filter((sv) => cats.includes(sv.category) || (ul.hasAttribute('data-rest') && !claimed.has(sv.category)));
+    ul.innerHTML = items.length ? items.map(svcRow).join('') : `<li class="services-empty">Pronto habrá servicios en esta temporada.</li>`;
+  }
+}
+
+/* ---------- capítulo de Fallas: cuenta atrás y días con huecos ---------- */
+
+const FALLAS_DAYS = { 15: 'Plantà', 16: '', 17: 'Ofrenda', 18: 'Ofrenda', 19: 'Cremà' };
+
+function fallasServices() {
+  return state.services.filter((sv) => sv.category === 'Falleras');
+}
+
+async function renderFallas() {
+  const s = settings();
+  const end = s.fallasEnd;
+  const plantà = addDays(end, -4);
+  $('[data-fallas-year]').textContent = end.slice(0, 4);
+  const cd = $('[data-countdown]');
+  const left = daysBetween(state.info.today, plantà);
+  cd.hidden = false;
+  cd.innerHTML = left > 0 ? `Faltan <b>${left}</b> ${left === 1 ? 'día' : 'días'} para la plantà` : '<b>¡Estamos en Fallas!</b>';
+
+  const types = fallasServices();
+  const picker = $('[data-fallas-picker]');
+  if (!types.length) {
+    picker.hidden = true;
     return;
   }
-  $('#cat-tabs').innerHTML = gs
-    .map(([cat], i) => `<a class="chip" role="listitem" href="#cat-${slug(cat)}" ${i === 0 ? 'aria-current="true"' : ''}>${esc(cat)}</a>`)
+  state.fallasSvc ??= types[0].id;
+  $('[data-fallas-types]').innerHTML = types
+    .map((t) => `<button type="button" data-fallas-svc="${t.id}" aria-pressed="${t.id === state.fallasSvc}">${esc(t.name.replace(/^Peinado de fallera\s*/i, '') || 'Adulta')}</button>`)
     .join('');
-  $('#services').innerHTML = gs
-    .map(
-      ([cat, list]) => `
-      <div class="svc-group">
-        <h3 id="cat-${slug(cat)}">${esc(cat)}</h3>
-        <ul class="svc-list">
-          ${list
-            .map(
-              (s) => `
-            <li class="svc">
-              <div class="svc__name">${esc(s.name)}</div>
-              ${s.description ? `<p class="svc__desc">${esc(s.description)}</p>` : ''}
-              <div class="svc__facts"><span>${duration(s.duration)}</span>${s.price ? `<span class="svc__price">${esc(s.price)}</span>` : ''}</div>
-              <button class="btn btn--ghost btn--small" type="button" data-book="${s.id}" aria-label="Reservar ${esc(s.name)}">Reservar</button>
-            </li>`
-            )
-            .join('')}
-        </ul>
-      </div>`
-    )
-    .join('');
+  // "Peinado de fallera" → "Adulta"
+  $$('[data-fallas-svc]').forEach((b) => {
+    if (b.textContent.trim() === 'Adulta' || b.textContent.trim() === '') b.textContent = 'Adulta';
+    else b.textContent = b.textContent.charAt(0).toUpperCase() + b.textContent.slice(1);
+  });
 
-  // Pestaña activa según el scroll
-  const tabs = $$('#cat-tabs .chip');
-  const heads = $$('.svc-group h3');
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const en of entries) {
-        if (en.isIntersecting) {
-          tabs.forEach((t) => t.setAttribute('aria-current', String(t.hash === `#${en.target.id}`)));
-          // Desplaza solo la fila de pestañas (en horizontal), nunca la página.
-          const active = tabs.find((t) => t.hash === `#${en.target.id}`);
-          const row = $('#cat-tabs');
-          if (active && (active.offsetLeft < row.scrollLeft || active.offsetLeft + active.offsetWidth > row.scrollLeft + row.clientWidth)) {
-            row.scrollTo({ left: active.offsetLeft - 16, behavior: 'smooth' });
-          }
-        }
-      }
-    },
-    { rootMargin: '-140px 0px -60% 0px' }
-  );
-  heads.forEach((h) => io.observe(h));
+  const daysEl = $('[data-fallas-days]');
+  if (!s.bookingOpen) {
+    daysEl.innerHTML = `<li class="fallas__closed">La reserva online abrirá muy pronto. Mientras, escribe a Miguel por Instagram.</li>`;
+    return;
+  }
+  daysEl.innerHTML = Array.from({ length: 5 }, () => `<li><span class="skeleton fallas__sk"></span></li>`).join('');
+  try {
+    const { days } = await api(`/api/days?service=${state.fallasSvc}&from=${plantà}&n=5`);
+    daysEl.innerHTML = days
+      .map((d) => {
+        const n = Number(d.date.slice(8));
+        const label = FALLAS_DAYS[n] || '';
+        const state_ = !d.open ? 'Cerrado' : !d.free ? 'Completo' : `${d.free} ${d.free === 1 ? 'hueco' : 'huecos'}`;
+        return `<li><button type="button" class="fday" data-fallas-date="${d.date}" ${d.free ? '' : 'disabled'}
+          aria-label="${longDate(d.date)}${label ? `, ${label.toLowerCase()}` : ''}: ${state_}">
+          <span class="fday__dow">${dow(d.date)}</span>
+          <span class="fday__num">${n}</span>
+          <span class="fday__tag">${label || '&nbsp;'}</span>
+          <span class="fday__free">${state_}</span>
+        </button></li>`;
+      })
+      .join('');
+  } catch {
+    daysEl.innerHTML = `<li class="fallas__closed">No se han podido cargar los días. Puedes reservar con el botón.</li>`;
+  }
 }
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-fallas-svc]');
+  if (t) {
+    state.fallasSvc = Number(t.dataset.fallasSvc);
+    renderFallas();
+    return;
+  }
+  const d = e.target.closest('[data-fallas-date]');
+  if (d) return openBooking(state.fallasSvc, { date: d.dataset.fallasDate });
+  if (e.target.closest('[data-fallas-book]')) {
+    const types = fallasServices();
+    if (!types.length) return openBooking();
+    state.extra = [];
+    return openBooking(state.fallasSvc ?? types[0].id, { date: null, fallas: true });
+  }
+});
 
 function hoursHtml() {
   const s = settings();
@@ -196,10 +242,10 @@ function openStatus() {
 function renderStatus() {
   const st = openStatus();
   const el = $('#open-status');
-  const side = $('[data-status-line]');
+  if (!el) return;
   if (!st) {
-    side.hidden = false;
-    side.innerHTML = `<span class="muted">La reserva online abrirá muy pronto.</span>`;
+    el.hidden = false;
+    el.innerHTML = `${ICON('clock')}<span>La reserva online abrirá muy pronto.</span>`;
     return;
   }
   // Cerrado no se pinta en rojo: la reserva online funciona a cualquier hora.
@@ -208,8 +254,6 @@ function renderStatus() {
     : `<span class="status-neutral">Reserva online 24 h</span>&nbsp;· ${st.text}`;
   el.hidden = false;
   el.innerHTML = `${ICON('clock')}<span>${html}</span>`;
-  side.hidden = false;
-  side.innerHTML = html;
 }
 
 function renderContact() {
@@ -235,7 +279,7 @@ function setupTopbar() {
     },
     { rootMargin: '-64px 0px 0px 0px' }
   );
-  io.observe($('.hero__actions'));
+  io.observe($('.fallas__actions'));
 }
 
 document.addEventListener('click', (e) => {
@@ -262,7 +306,7 @@ document.addEventListener('click', (e) => {
 const dlg = $('#booking');
 const content = $('#booking-content');
 
-function openBooking(serviceId = null) {
+function openBooking(serviceId = null, { date = null, fallas = false } = {}) {
   if (!state.info) return;
   state.error = '';
   state.result = null;
@@ -273,6 +317,14 @@ function openBooking(serviceId = null) {
     state.step = 'time';
     resetTime();
     state.winStart = state.info.today;
+    const s = settings();
+    if (date || fallas) {
+      // Abre directamente en los días de Fallas (o en el día elegido).
+      const start = addDays(s.fallasEnd, -13);
+      state.winStart = start > state.info.today ? start : state.info.today;
+      state.date = date;
+      state.pendingPrefer = date ? null : addDays(s.fallasEnd, -4);
+    }
   } else {
     state.step = state.serviceId ? state.step : 'service';
     if (state.step === 'done') state.step = 'service';
@@ -283,7 +335,11 @@ function openBooking(serviceId = null) {
     if (location.hash !== '#reservar') history.pushState({ booking: true }, '', '#reservar');
   }
   render();
-  if (state.step === 'time' && !state.days.length && settings().bookingOpen) loadDays({ keep: true });
+  if (state.step === 'time' && !state.days.length && settings().bookingOpen) {
+    const prefer = state.pendingPrefer;
+    state.pendingPrefer = null;
+    loadDays({ keep: true, prefer });
+  }
 }
 
 function closeBooking() {

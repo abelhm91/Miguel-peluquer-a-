@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Miguel de la Cruz · Peluquería en Paterna · Reserva tu cita</title>
+  <title>Miguel de la Cruz · Peinados de fallera en Paterna · Reserva tu cita</title>
   <meta name="description" content="Peinados de fallera, trenzas, peinados y recogidos en Paterna. Calle del Cid, 12. Reserva tu cita online con Miguel de la Cruz.">
   <meta name="theme-color" content="#100d0c">
   <link rel="icon" href="/assets/logo-sello.png" type="image/png">
@@ -15,6 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/home.css">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -54,7 +55,7 @@
     <symbol id="i-route" viewBox="0 0 24 24"><path d="M12 3 21 12l-9 9-9-9Z"/><path d="M10 13.5V11h4M12.5 9l1.8 2-1.8 2"/></symbol>
   </svg>
 
-  <a class="skip" href="#servicios">Saltar a los servicios</a>
+  <a class="skip" href="#fallas">Saltar al contenido</a>
 
   <header class="topbar" id="topbar">
     <div class="topbar__inner">
@@ -62,30 +63,33 @@
         <img src="/assets/logo-sello.png" alt="" width="36" height="36">
         <span class="brand__word">Pentinats</span>
       </a>
-      <nav class="topnav" aria-label="Secciones">
-        <a href="#especialidades">Especialidades</a>
-        <a href="#servicios">Servicios</a>
-        <a href="#ubicacion">Dónde estamos</a>
+      <nav class="topnav" aria-label="Temporadas">
+        <a href="#fallas">Fallas</a>
+        <a href="#celebraciones">Bodas y comuniones</a>
+        <a href="#todo-el-ano">Todo el año</a>
+        <a href="#salon">El salón</a>
       </nav>
       <button class="btn btn--gold btn--small" type="button" data-book>Reservar</button>
     </div>
   </header>
 
-  <main>
-    <section class="hero" aria-labelledby="salon-name">
-      <div class="wrap hero__inner">
-        <div class="hero__text">
-          <h1 id="salon-name" class="hero__title"><span>Miguel</span> <span>de la Cruz</span></h1>
-          <p class="hero__lede">Peluquería en Paterna: peinados de fallera, trenzas y recogidos.</p>
-          <div class="hero__actions">
-            <button class="btn btn--gold" type="button" data-book>Reservar cita</button>
-            <a class="btn btn--line" href="#servicios">Ver servicios</a>
+  <main class="year">
+    <!-- Marzo: Fallas -->
+    <section id="fallas" class="season season--night fallas" aria-labelledby="fallas-h">
+      <div class="wrap season__grid">
+        <div class="season__mark" aria-hidden="true"><span class="season__dot"></span><span>Marzo</span></div>
+        <div class="fallas__text">
+          <h1 id="fallas-h" class="fallas__title">Fallas <span data-fallas-year></span></h1>
+          <p class="fallas__lede">Peinados de fallera de <strong>Miguel de la Cruz</strong>, en Paterna: los moños, el aderezo y el peinado entero, para la plantà, la ofrenda y la cremà.</p>
+          <p class="countdown" data-countdown hidden></p>
+          <div class="fallas__picker" data-fallas-picker>
+            <div class="seg" role="group" aria-label="Tipo de peinado" data-fallas-types></div>
+            <ol class="fallas__days" data-fallas-days aria-label="Días de Fallas"></ol>
           </div>
-          <ul class="hero__meta">
-            <li id="open-status" hidden></li>
-            <li><svg class="icon"><use href="#i-pin"/></svg><a href="https://www.google.com/maps/search/?api=1&query=Calle+del+Cid+12+Paterna" target="_blank" rel="noopener">Calle del Cid, 12, bajo · Paterna</a></li>
-            <li><svg class="icon"><use href="#i-insta"/></svg><a href="https://www.instagram.com/peinados.migueldelacruz/" target="_blank" rel="noopener">Ver sus trabajos en Instagram</a></li>
-          </ul>
+          <div class="fallas__actions">
+            <button class="btn btn--gold" type="button" data-fallas-book>Reservar mi peinado de fallera</button>
+            <a class="fallas__insta" href="https://www.instagram.com/peinados.migueldelacruz/" target="_blank" rel="noopener"><svg class="icon"><use href="#i-insta"/></svg>Ver sus falleras en Instagram</a>
+          </div>
         </div>
         <div class="hero__seal" aria-hidden="true">
           <svg class="seal-rings" viewBox="0 0 400 400">
@@ -99,95 +103,76 @@
       </div>
     </section>
 
-    <section id="especialidades" class="specials" aria-labelledby="especialidades-h">
-      <div class="wrap">
-        <h2 id="especialidades-h" class="display-h specials__title">Especialista en falleras, trenzas, peinados y recogidos</h2>
-        <article class="special special--lead">
-          <h3>Falleras</h3>
-          <p>El peinado de fallera tradicional, con sus moños y el aderezo, para la ofrenda, los actos y la semana grande. Para Fallas la agenda se llena pronto: reserva con tiempo.</p>
-          <div class="special__actions">
-            <button class="btn btn--gold" type="button" data-book-cat="Falleras">Reservar peinado de fallera</button>
-            <a class="btn btn--line" href="https://www.instagram.com/peinados.migueldelacruz/" target="_blank" rel="noopener"><svg class="icon"><use href="#i-insta"/></svg>Ver sus falleras en Instagram</a>
-          </div>
-        </article>
+    <!-- Primavera y verano: celebraciones -->
+    <section id="celebraciones" class="season season--light" aria-labelledby="celebraciones-h">
+      <div class="wrap season__grid">
+        <div class="season__mark" aria-hidden="true"><span class="season__dot"></span><span>Abril – septiembre</span></div>
+        <div class="season__body">
+          <h2 id="celebraciones-h" class="season__title">Bodas, comuniones y celebraciones</h2>
+          <p class="season__lede">Peinados y recogidos para novias, invitadas y comuniones. Al reservar, cuéntale a Miguel la fecha del evento en las notas.</p>
+          <ul class="svc-list" data-cats="Peinados y recogidos" aria-live="polite">
+            <li class="skeleton" style="height:76px"></li>
+          </ul>
+        </div>
       </div>
     </section>
 
-    <div class="wrap layout">
-      <div class="layout__main">
-        <section id="servicios" class="block" aria-labelledby="servicios-h">
-          <h2 id="servicios-h" class="display-h">Servicios</h2>
-          <nav class="cats" aria-label="Categorías de servicios">
-            <div class="cats__scroll" id="cat-tabs" role="list"></div>
-          </nav>
-          <div id="services" class="services" aria-live="polite">
-            <div class="skeleton" style="height:84px"></div>
-            <div class="skeleton" style="height:84px"></div>
-            <div class="skeleton" style="height:84px"></div>
-          </div>
-        </section>
+    <!-- Todo el año -->
+    <section id="todo-el-ano" class="season season--stone" aria-labelledby="todo-h">
+      <div class="wrap season__grid">
+        <div class="season__mark" aria-hidden="true"><span class="season__dot"></span><span>Todo el año</span></div>
+        <div class="season__body">
+          <h2 id="todo-h" class="season__title">Todo el año</h2>
+          <p class="season__lede">Trenzas para chica y chico, mechas y la peluquería del día a día.</p>
+          <ul class="svc-list" data-cats="Trenzas,Peluquería" data-rest aria-live="polite">
+            <li class="skeleton" style="height:76px"></li>
+          </ul>
+        </div>
       </div>
+    </section>
 
-      <aside class="layout__side" aria-label="Reserva y horario">
-        <div class="side-card">
-          <div class="side-card__head">
-            <div>
-              <strong>Miguel de la Cruz</strong>
-              <span>Pentinats · Paterna</span>
+    <!-- El salón -->
+    <section id="salon" class="season season--night salon" aria-labelledby="salon-h">
+      <div class="wrap season__grid">
+        <div class="season__mark" aria-hidden="true"><span class="season__dot"></span><span>El salón</span></div>
+        <div class="season__body">
+          <h2 id="salon-h" class="season__title">El salón de Miguel</h2>
+          <p class="season__lede">Calle del Cid, 12, bajo, en Paterna. «Pentinats» significa «peinados» en valenciano: es el nombre de su marca.</p>
+          <p class="salon__status" id="open-status" hidden></p>
+          <div class="salon__grid">
+            <div class="salon__place">
+              <div class="map">
+                <iframe title="Mapa: Calle del Cid, 12, Paterna" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                  src="https://www.google.com/maps?q=Calle+del+Cid+12,+46980+Paterna,+Valencia&z=16&output=embed"></iframe>
+              </div>
+              <div class="address">
+                <div>
+                  <strong>Calle del Cid, 12, bajo</strong>
+                  <span>46980 Paterna, Valencia</span>
+                </div>
+                <a class="btn btn--line btn--small" href="https://www.google.com/maps/dir/?api=1&destination=Calle+del+Cid+12+Paterna" target="_blank" rel="noopener">
+                  <svg class="icon"><use href="#i-route"/></svg>Cómo llegar
+                </a>
+              </div>
+            </div>
+            <div class="salon__info">
+              <h3>Horario</h3>
+              <div data-hours></div>
+              <div data-contact hidden>
+                <h3>Contacto</h3>
+                <div class="contact-links" data-contact-links></div>
+              </div>
+              <a class="insta-card" href="https://www.instagram.com/peinados.migueldelacruz/" target="_blank" rel="noopener">
+                <span class="insta-card__icon"><svg class="icon"><use href="#i-insta"/></svg></span>
+                <span>
+                  <strong>Ver sus trabajos en Instagram</strong>
+                  <span>@peinados.migueldelacruz</span>
+                </span>
+                <svg class="icon"><use href="#i-next"/></svg>
+              </a>
             </div>
           </div>
-          <button class="btn btn--gold btn--block" type="button" data-book>Reservar cita</button>
-          <p class="side-card__status" data-status-line hidden></p>
-          <div class="side-card__section">
-            <h3>Dirección</h3>
-            <p class="muted">Calle del Cid, 12, bajo<br>46980 Paterna · <a href="#ubicacion">Ver mapa y horario</a></p>
-          </div>
-          <div class="side-card__section" data-contact hidden>
-            <h3>Contacto</h3>
-            <div class="contact-links" data-contact-links></div>
-          </div>
         </div>
-      </aside>
-    </div>
-
-    <section id="sobre" class="about-band" aria-labelledby="sobre-h">
-      <div class="wrap about-band__inner">
-        <h2 id="sobre-h" class="about-band__quote">Sobre Miguel</h2>
-        <div class="about-band__text">
-          <p>Miguel de la Cruz peina en su salón de la Calle del Cid, en Paterna. Además de sus especialidades, hace peluquería del día a día, como mechas.</p>
-          <p>«Pentinats» significa «peinados» en valenciano: es el nombre de su marca. Publica sus trabajos a diario en Instagram, la mejor forma de ver su estilo antes de venir.</p>
-          <a class="insta-card" href="https://www.instagram.com/peinados.migueldelacruz/" target="_blank" rel="noopener">
-            <span class="insta-card__icon"><svg class="icon"><use href="#i-insta"/></svg></span>
-            <span>
-              <strong>Ver trabajos en Instagram</strong>
-              <span>@peinados.migueldelacruz</span>
-            </span>
-            <svg class="icon"><use href="#i-next"/></svg>
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <section id="ubicacion" class="wrap visit" aria-labelledby="ubicacion-h">
-      <div class="visit__place">
-        <h2 id="ubicacion-h" class="display-h">Dónde estamos</h2>
-        <div class="map">
-          <iframe title="Mapa: Calle del Cid, 12, Paterna" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-            src="https://www.google.com/maps?q=Calle+del+Cid+12,+46980+Paterna,+Valencia&z=16&output=embed"></iframe>
-        </div>
-        <div class="address">
-          <div>
-            <strong>Calle del Cid, 12, bajo</strong>
-            <span>46980 Paterna, Valencia</span>
-          </div>
-          <a class="btn btn--ghost btn--small" href="https://www.google.com/maps/dir/?api=1&destination=Calle+del+Cid+12+Paterna" target="_blank" rel="noopener">
-            <svg class="icon"><use href="#i-route"/></svg>Cómo llegar
-          </a>
-        </div>
-      </div>
-      <div class="visit__hours" id="horario">
-        <h2 class="display-h">Horario</h2>
-        <div data-hours></div>
       </div>
     </section>
   </main>

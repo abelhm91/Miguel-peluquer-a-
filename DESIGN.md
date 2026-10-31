@@ -1,6 +1,13 @@
 # Design
 
-Web de salón con el flujo de reserva al nivel de Booksy / Fresha y una capa de marca fuerte tomada del logo: noche negra y oro. La portada es negra a pantalla completa con el nombre en Jost grande y el medallón dentro de un sello con anillos dorados; las secciones alternan negro (portada, Falleras, «Sobre Miguel», pie) y blanco (especialidades, servicios, visita). Las falleras son la especialidad protagonista: el título «Especialista en falleras, trenzas, peinados y recogidos» y una única tarjeta negra a todo el ancho para Falleras (las otras especialidades viven en la lista de servicios).
+**La temporada de Miguel** (estructura elegida por el dueño, sustituye a la ficha tipo Booksy/Fresha). La página se lee como el año del salón y no como una lista de servicios: capítulos a pantalla completa unidos por una **espina dorada vertical** con etiquetas de temporada (Marzo · Abril–septiembre · Todo el año · El salón).
+
+1. **Fallas** (negro, primera pantalla): «Fallas 2027» enorme en Jost, Miguel de la Cruz en la entradilla, cuenta atrás a la plantà, conmutador Adulta/Infantil y los cinco días 15–19 de marzo (Plantà · Ofrenda · Cremà) con sus huecos reales; cada día abre la reserva en ese día. Sello con anillos a la derecha en escritorio.
+2. **Bodas, comuniones y celebraciones** (blanco): servicios de «Peinados y recogidos».
+3. **Todo el año** (piedra): Trenzas, Peluquería y cualquier categoría nueva.
+4. **El salón** (negro): qué significa «Pentinats», estado de apertura, mapa, horario, contacto e Instagram.
+
+El flujo de reserva, el resguardo, `/cita` y el panel no cambian de estructura. La marca: noche y oro del logo, Jost para display, Figtree para texto.
 
 ## Tokens (`public/styles.css`)
 
