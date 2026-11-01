@@ -509,7 +509,8 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
 
     if (m === 'GET' && path === '/api/admin/upcoming') {
       const n = now();
-      const to = addDays(n.date, Math.min(365, Number(url.searchParams.get('days')) || 60));
+      // Todas las citas futuras (por defecto hasta 2 años vista, que cubre cualquier plazo de reserva).
+      const to = addDays(n.date, Math.min(800, Number(url.searchParams.get('days')) || 730));
       const rows = await db.all(
         "SELECT * FROM bookings WHERE status = 'confirmed' AND date >= ? AND date <= ? ORDER BY date, start_min LIMIT 500",
         n.date,

@@ -401,7 +401,7 @@ async function renderUpcoming() {
   view.innerHTML = `<div class="skeleton" style="height:240px"></div>`;
   let data;
   try {
-    data = await api('/api/admin/upcoming?days=90');
+    data = await api('/api/admin/upcoming');
   } catch (e) {
     if (e.status === 401) return showLogin();
     view.innerHTML = `<div class="alert">${esc(e.message)}</div>`;
@@ -413,7 +413,7 @@ async function renderUpcoming() {
     byDay.get(b.date).push(b);
   }
   view.innerHTML = `
-    <div class="view-head"><h1>Próximas citas</h1><span class="muted">${data.bookings.length} en los próximos 90 días</span></div>
+    <div class="view-head"><h1>Próximas citas</h1><span class="muted">${data.bookings.length} ${data.bookings.length === 1 ? 'cita confirmada' : 'citas confirmadas'} desde hoy</span></div>
     ${
       byDay.size
         ? [...byDay.entries()]

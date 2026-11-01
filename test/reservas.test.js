@@ -235,6 +235,17 @@ test('avisos a Miguel por Telegram y WhatsApp', async () => {
   assert.ok(JSON.parse(sent[2][1]).text.includes('Cita cancelada'));
 });
 
+test('próximas: incluye citas a más de 90 días (Fallas)', async () => {
+  const { call } = await setup();
+  const login = await call('/api/admin/login', { method: 'POST', body: { password: 'secreto' } });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const svc = (await call('/api/info')).data.services[0];
+  const far = addDays(NOW.date, 200);
+  await call('/api/admin/bookings', { method: 'POST', cookie, body: { serviceId: svc.id, date: far, time: '10:00', name: 'Lejana', force: true } });
+  const up = await call('/api/admin/upcoming', { cookie });
+  assert.ok(up.data.bookings.some((b) => b.date === far));
+});
+
 test('hora de Madrid', () => {
   assert.deepEqual(nowInMadrid(new Date('2030-07-01T22:30:00Z')), { date: '2030-07-02', minutes: 30 });
 });
