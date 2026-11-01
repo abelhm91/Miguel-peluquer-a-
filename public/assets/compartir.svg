@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#100d0c"/>
+  <path d="M0 0h1200v10H0z" fill="#d4b06a"/>
+  <g fill="#f4eee5" font-family="Jost, Arial, sans-serif">
+    <text x="78" y="118" fill="#d4b06a" font-size="25" font-weight="600" letter-spacing="8">PENTINATS</text>
+    <text x="78" y="233" font-size="76" font-weight="600" letter-spacing="-2">Peinados de</text>
+    <text x="78" y="320" font-size="76" font-weight="600" letter-spacing="-2">fallera en Paterna</text>
+    <text x="80" y="390" fill="#c9bfb2" font-size="30" font-weight="400">Trenzas · recogidos · peluquería</text>
+    <text x="80" y="513" font-size="34" font-weight="500">Miguel de la Cruz</text>
+    <text x="80" y="559" fill="#d4b06a" font-size="24" font-weight="500">Reserva tu cita online</text>
+  </g>
+  <circle cx="960" cy="340" r="188" fill="none" stroke="#d4b06a" stroke-width="2"/>
+  <circle cx="960" cy="340" r="170" fill="none" stroke="#d4b06a" stroke-width="1" opacity=".5"/>
+  <image href="logo-sello.png" x="820" y="200" width="280" height="280" preserveAspectRatio="xMidYMid meet"/>
+</svg>
