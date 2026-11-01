@@ -5,6 +5,7 @@ import { getSettings, saveSettings } from './db.js';
 import { daySummary, freeSlots, hasAnyHours, busyRanges, openIntervals, effectiveMaxDays, nextFallasEnd } from './availability.js';
 import { addDays, isValidDate, nowInMadrid, toHHMM, toMinutes } from './time.js';
 import { channels, messageFor, notify } from './notify.js';
+import { clientKey, groupClients, matchesClient } from './clients.js';
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -507,6 +508,22 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
         bookings: bookings.map((r) => bookingRow(r, { full: true })),
         blocks: blocks.map((r) => ({ id: r.id, date: r.date, start: toHHMM(r.start_min), end: toHHMM(Math.min(r.end_min, 1440)), reason: r.reason })),
       });
+    }
+
+    if (m === 'GET' && path === '/api/admin/clients') {
+      // Lista de clientas (las de actividad más reciente primero), con búsqueda.
+      const q = str(url.searchParams.get('q'), 60);
+      const rows = await db.all('SELECT * FROM bookings ORDER BY date DESC, start_min DESC LIMIT 5000');
+      const list = groupClients(rows, now().date).filter((c) => matchesClient(c, q));
+      return json(200, { total: list.length, clients: list.slice(0, 60) });
+    }
+
+    if (m === 'GET' && (mm = path.match(/^\/api\/admin\/clients\/([^/]+)$/))) {
+      const key = decodeURIComponent(mm[1]);
+      const rows = (await db.all('SELECT * FROM bookings ORDER BY date DESC, start_min DESC LIMIT 5000')).filter((r) => clientKey(r.phone, r.name) === key);
+      if (!rows.length) throw new HttpError(404, 'No encuentro a esa clienta.');
+      const [client] = groupClients(rows, now().date);
+      return json(200, { client, bookings: rows.map((r) => bookingRow(r, { full: true })) });
     }
 
     if (m === 'GET' && path === '/api/admin/upcoming') {

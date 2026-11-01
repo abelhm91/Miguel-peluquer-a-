@@ -249,3 +249,28 @@ test('próximas: incluye citas a más de 90 días (Fallas)', async () => {
 test('hora de Madrid', () => {
   assert.deepEqual(nowInMadrid(new Date('2030-07-01T22:30:00Z')), { date: '2030-07-02', minutes: 30 });
 });
+
+test('fichas de clientas: agrupar por teléfono, buscar e historial', async () => {
+  const { call } = await setup();
+  const login = await call('/api/admin/login', { method: 'POST', body: { password: 'secreto' } });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const svc = (await call('/api/info')).data.services[0];
+  const book = (date, time, name, phone) => call('/api/admin/bookings', { method: 'POST', cookie, body: { serviceId: svc.id, date, time, name, phone, force: true } });
+  await book(addDays(NOW.date, -30), '10:00', 'María José', '600 11 22 33');
+  await book(addDays(NOW.date, -3), '10:00', 'Mª José Pérez', '+34600112233');
+  await book(MONDAY, '10:00', 'Mª José Pérez', '600112233');
+  await book(MONDAY, '12:00', 'Lucía', '');
+  const all = await call('/api/admin/clients', { cookie });
+  assert.equal(all.status, 200);
+  assert.equal(all.data.total, 2, 'mismo teléfono con distinto formato = la misma clienta');
+  const mj = all.data.clients.find((c) => c.phone);
+  assert.equal(mj.name, 'Mª José Pérez', 'manda el nombre de la cita más reciente');
+  assert.equal(mj.visits, 2);
+  assert.equal(mj.nextDate, MONDAY);
+  assert.equal((await call('/api/admin/clients?q=lucia', { cookie })).data.clients[0].name, 'Lucía', 'sin acentos');
+  assert.equal((await call('/api/admin/clients?q=22%2033', { cookie })).data.total, 1, 'por trozo de teléfono');
+  const det = await call(`/api/admin/clients/${encodeURIComponent(mj.key)}`, { cookie });
+  assert.equal(det.data.bookings.length, 3);
+  assert.equal((await call('/api/admin/clients/nadie', { cookie })).status, 404);
+  assert.equal((await call('/api/admin/clients')).status, 401, 'solo con sesión');
+});
