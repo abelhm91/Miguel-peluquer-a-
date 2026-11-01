@@ -1052,3 +1052,11 @@ details.card[open] > summary {
   border-top: 1px solid var(--line);
   margin: 8px 0 0;
 }
+
+.export-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: -4px 0 18px;
+}

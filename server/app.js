@@ -7,6 +7,7 @@ import { addDays, isValidDate, nowInMadrid, toHHMM, toMinutes } from './time.js'
 import { channels, messageFor, notify } from './notify.js';
 import { clientKey, groupClients, matchesClient } from './clients.js';
 import { sendDailySummary } from './summary.js';
+import { bookingsCsv } from './maintenance.js';
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -508,6 +509,24 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
         open: openIntervals(settings, date).map(([a, b]) => [toHHMM(a), toHHMM(b)]),
         bookings: bookings.map((r) => bookingRow(r, { full: true })),
         blocks: blocks.map((r) => ({ id: r.id, date: r.date, start: toHHMM(r.start_min), end: toHHMM(Math.min(r.end_min, 1440)), reason: r.reason })),
+      });
+    }
+
+    if (m === 'GET' && path === '/api/admin/export.csv') {
+      // Todas las citas (o solo un rango con ?from=&to=), para abrir en Excel.
+      const from = url.searchParams.get('from');
+      const to = url.searchParams.get('to');
+      const rows = await db.all(
+        'SELECT * FROM bookings WHERE date >= ? AND date <= ? ORDER BY date, start_min',
+        isValidDate(from) ? from : '0000-01-01',
+        isValidDate(to) ? to : '9999-12-31'
+      );
+      return new Response(bookingsCsv(rows), {
+        headers: {
+          'content-type': 'text/csv; charset=utf-8',
+          'content-disposition': `attachment; filename="citas-${now().date}.csv"`,
+          'cache-control': 'no-store',
+        },
       });
     }
 
