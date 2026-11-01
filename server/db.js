@@ -21,6 +21,7 @@ export const DEFAULT_SETTINGS = {
   bookingNote: '',
   legalName: '', // nombre y apellidos del titular (aviso legal)
   nif: '', // NIF/DNI del titular (aviso legal)
+  dailySummary: true, // resumen de las citas de mañana por Telegram/WhatsApp
 };
 
 /** Adaptador para un binding D1 de Cloudflare. */

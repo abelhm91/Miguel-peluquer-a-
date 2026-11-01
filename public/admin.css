@@ -937,3 +937,9 @@ details.card[open] > summary {
 .form .row {
   align-items: start;
 }
+
+.notify-sep {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 8px 0 0;
+}
