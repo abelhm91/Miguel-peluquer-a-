@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacidad y cookies · Miguel de la Cruz</title>
+  <link rel="icon" href="/assets/logo-sello.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/legal.css">
+</head>
+<body>
+  <header class="topbar is-scrolled">
+    <div class="topbar__inner">
+      <a class="brand" href="/"><img src="/assets/logo-sello.png" alt="" width="36" height="36"><span class="brand__word">Pentinats</span></a>
+    </div>
+  </header>
+  <main class="legal">
+    <h1>Privacidad y cookies</h1>
+    <p class="updated">Última actualización: 1 de noviembre de 2026</p>
+
+    <h2>Quién trata tus datos</h2>
+    <p>El responsable de tus datos soy yo, <span data-legal="name">—</span> (NIF <span data-legal="nif">—</span>), con salón en la Calle del Cid, 12, bajo, 46980 Paterna (Valencia). Para cualquier cosa sobre tus datos puedes escribirme a <span data-legal="email">—</span> o por Instagram (<span data-legal="instagram">@peinados.migueldelacruz</span>).</p>
+
+    <h2>Qué datos recojo</h2>
+    <p>Cuando reservas una cita me das:</p>
+    <ul>
+      <li>tu nombre y, si reservas para varias personas, el nombre de cada una;</li>
+      <li>tu teléfono;</li>
+      <li>tu correo, si quieres darlo (es opcional);</li>
+      <li>lo que me escribas en las notas;</li>
+      <li>el servicio, el día, la hora y el precio de la cita.</li>
+    </ul>
+    <p>Por favor, no escribas en las notas datos sensibles (por ejemplo, de salud) que no hagan falta para el peinado.</p>
+
+    <h2>Para qué los uso</h2>
+    <ul>
+      <li>Gestionar tu cita: guardarla, avisarte si hay algún cambio y atenderte en el salón.</li>
+      <li>Que puedas consultar, cambiar o cancelar tu cita con tu enlace privado.</li>
+    </ul>
+    <p>No uso tus datos para publicidad ni se los vendo a nadie.</p>
+
+    <h2>Por qué puedo tratarlos (base legal)</h2>
+    <p>Porque tú me pides una cita: tratar tus datos es necesario para darte el servicio que solicitas (artículo 6.1.b del Reglamento General de Protección de Datos, RGPD).</p>
+
+    <h2>Cuánto tiempo los guardo</h2>
+    <p>Mientras la cita esté vigente y, después, hasta un año para poder atenderte si me preguntas por ella; pasado ese tiempo los borro, salvo que una ley me obligue a conservarlos más.</p>
+
+    <h2>Quién más los ve</h2>
+    <ul>
+      <li><strong>Cloudflare</strong>, que aloja la web y la base de datos de citas (actúa como encargado del tratamiento). Puede tratar datos fuera de la Unión Europea con las garantías que exige el RGPD (cláusulas contractuales tipo).</li>
+      <li><strong>Telegram y/o WhatsApp</strong>, solo para enviarme a mí el aviso de que tienes una cita (tu nombre, la cita y tu teléfono).</li>
+    </ul>
+    <p>No se los paso a nadie más, salvo obligación legal.</p>
+
+    <h2>Tus derechos</h2>
+    <p>Puedes pedirme acceder a tus datos, corregirlos, borrarlos, oponerte a que los use, limitar su uso o llevártelos (portabilidad). Escríbeme a <span data-legal="email">—</span> o por Instagram. También puedes cancelar tu cita en cualquier momento desde tu enlace privado.</p>
+    <p>Si crees que no he tratado bien tus datos, puedes reclamar ante la <a href="https://www.aepd.es" target="_blank" rel="noopener">Agencia Española de Protección de Datos</a>.</p>
+
+    <h2>Cookies y almacenamiento</h2>
+    <p>Esta web no usa cookies de publicidad ni de analítica. Solo usa lo imprescindible para funcionar:</p>
+    <ul>
+      <li><strong>En tu navegador</strong> guardo tu nombre, teléfono y correo para no tener que pedírtelos la próxima vez, y la reserva que estás haciendo por si se recarga la página. Puedes borrarlo desde los ajustes de tu navegador.</li>
+      <li><strong>Panel privado:</strong> una cookie de sesión técnica solo para mí, cuando entro a mi agenda.</li>
+      <li><strong>Fuentes de Google Fonts</strong>: se cargan desde los servidores de Google, que reciben tu dirección IP.</li>
+      <li><strong>Mapa de Google Maps</strong>: solo se carga si pulsas «Ver el mapa». Google puede usar sus propias cookies; consulta su política de privacidad.</li>
+    </ul>
+
+    <p>Lee también el <a href="/aviso-legal">aviso legal</a>.</p>
+  </main>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p>Miguel de la Cruz · Pentinats · Calle del Cid, 12, bajo · 46980 Paterna</p>
+      <p class="footer__links"><a href="/">Volver a la web</a> · <a href="/aviso-legal">Aviso legal</a> · <a href="/privacidad">Privacidad y cookies</a></p>
+    </div>
+  </footer>
+  <script type="module">
+    // Rellena los datos del titular que Miguel pone en su panel (Ajustes → Datos legales).
+    const pending = (t) => `<span class="pending">${t} (pendiente)</span>`;
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    try {
+      const { settings: s } = await (await fetch('/api/info')).json();
+      const set = (k, html) => document.querySelectorAll(`[data-legal="${k}"]`).forEach((el) => (el.innerHTML = html));
+      set('name', s.legalName ? esc(s.legalName) : pending('Nombre y apellidos'));
+      set('nif', s.nif ? esc(s.nif) : pending('NIF'));
+      set('email', s.email ? `<a href="mailto:${esc(s.email)}">${esc(s.email)}</a>` : pending('Correo de contacto'));
+      set('instagram', `<a href="https://www.instagram.com/${esc(s.instagram)}/" target="_blank" rel="noopener">@${esc(s.instagram)}</a>`);
+    } catch {
+      /* si no carga, se quedan los textos por defecto */
+    }
+  </script>
+</body>
+</html>

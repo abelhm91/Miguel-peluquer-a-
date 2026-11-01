@@ -19,7 +19,7 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.txt': 'text/plain; charset=utf-8',
 };
-const PAGES = { '/': 'index.html', '/admin': 'admin.html', '/cita': 'cita.html' };
+const PAGES = { '/': 'index.html', '/admin': 'admin.html', '/cita': 'cita.html', '/aviso-legal': 'aviso-legal.html', '/privacidad': 'privacidad.html' };
 
 if (!process.env.ADMIN_PASSWORD) console.warn('⚠  ADMIN_PASSWORD no está definida: el panel /admin estará desactivado.');
 

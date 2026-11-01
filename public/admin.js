@@ -673,6 +673,15 @@ function renderSettings() {
           <input class="input" id="st-note" name="bookingNote" maxlength="400" value="${esc(s.bookingNote)}" placeholder="Por ejemplo: para Fallas, reserva con tiempo.">
         </div>
       </div>
+      <div class="card form">
+        <h2 style="font-size:1.0625rem">Datos legales</h2>
+        <p class="muted small">Salen en el aviso legal y en la política de privacidad de la web (la ley obliga a mostrarlos).</p>
+        <div class="row">
+          <div class="field"><label for="st-legal">Nombre y apellidos del titular</label><input class="input" id="st-legal" name="legalName" value="${esc(s.legalName)}" autocomplete="name"></div>
+          <div class="field"><label for="st-nif">NIF / DNI</label><input class="input" id="st-nif" name="nif" value="${esc(s.nif)}" maxlength="20"></div>
+        </div>
+        <p class="muted small">El correo de arriba se usa como contacto para temas de privacidad.</p>
+      </div>
       <div class="savebar"><button class="btn" type="submit">Guardar ajustes</button></div>
     </form>
     <section class="card form notify-card" aria-labelledby="notify-h">
@@ -731,6 +740,8 @@ function renderSettings() {
       maxDaysAhead: Number(f.maxDaysAhead.value),
       slotStep: Number(f.slotStep.value),
       bookingNote: f.bookingNote.value,
+      legalName: f.legalName.value,
+      nif: f.nif.value,
     };
     const r = await act($('button[type=submit]', f), () => api('/api/admin/settings', { method: 'PUT', body }), 'Ajustes guardados').catch(() => null);
     if (r) st.overview.settings = r.settings;

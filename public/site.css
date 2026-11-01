@@ -346,6 +346,36 @@
   background: var(--surface);
 }
 
+.map__load {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+
+.map__load strong {
+  font-size: 1.0625rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.map__load span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.map__load:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -4px;
+}
+
 .map iframe {
   width: 100%;
   height: 100%;

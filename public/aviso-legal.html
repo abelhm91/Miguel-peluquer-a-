@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Aviso legal · Miguel de la Cruz</title>
+  <link rel="icon" href="/assets/logo-sello.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/legal.css">
+</head>
+<body>
+  <header class="topbar is-scrolled">
+    <div class="topbar__inner">
+      <a class="brand" href="/"><img src="/assets/logo-sello.png" alt="" width="36" height="36"><span class="brand__word">Pentinats</span></a>
+    </div>
+  </header>
+  <main class="legal">
+    <h1>Aviso legal</h1>
+    <p class="updated">Última actualización: 1 de noviembre de 2026</p>
+
+    <h2>Quién soy</h2>
+    <p>Esta web es de mi peluquería. En cumplimiento de la Ley 34/2002 de servicios de la sociedad de la información (LSSI), estos son mis datos:</p>
+    <dl>
+      <dt>Titular</dt><dd data-legal="name">—</dd>
+      <dt>NIF</dt><dd data-legal="nif">—</dd>
+      <dt>Nombre comercial</dt><dd>Miguel de la Cruz · Pentinats</dd>
+      <dt>Dirección</dt><dd>Calle del Cid, 12, bajo · 46980 Paterna (Valencia)</dd>
+      <dt>Correo</dt><dd data-legal="email">—</dd>
+      <dt>Instagram</dt><dd data-legal="instagram">@peinados.migueldelacruz</dd>
+    </dl>
+
+    <h2>Para qué sirve esta web</h2>
+    <p>En esta web cuento qué hago y puedes reservar cita en mi salón. Las reservas son gratuitas y el pago se hace en el salón. Los precios que ves son los vigentes en el momento de reservar.</p>
+
+    <h2>Uso de la web</h2>
+    <p>Te pido que uses la web de buena fe: no hagas reservas falsas ni intentes dañar su funcionamiento. Puedo anular las reservas que sean claramente falsas.</p>
+
+    <h2>Contenidos y marca</h2>
+    <p>Los textos, el logotipo, el nombre «Pentinats» y las fotos de mis trabajos son míos o tengo permiso para usarlos. No los copies ni los uses sin pedírmelo.</p>
+
+    <h2>Enlaces a otras webs</h2>
+    <p>Desde aquí enlazo a Instagram, WhatsApp, Google Maps y Telegram. Esas páginas tienen sus propias condiciones y no soy responsable de su contenido.</p>
+
+    <h2>Responsabilidad</h2>
+    <p>Hago lo posible para que la web funcione bien y la información sea correcta, pero puede haber errores o interrupciones puntuales. Si algo no te cuadra, escríbeme y lo arreglo.</p>
+
+    <h2>Ley aplicable</h2>
+    <p>Esta web se rige por la legislación española. Para cualquier conflicto, y si tú eres consumidora, serán competentes los juzgados de tu domicilio.</p>
+
+    <p>Lee también la <a href="/privacidad">política de privacidad y cookies</a>.</p>
+  </main>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p>Miguel de la Cruz · Pentinats · Calle del Cid, 12, bajo · 46980 Paterna</p>
+      <p class="footer__links"><a href="/">Volver a la web</a> · <a href="/aviso-legal">Aviso legal</a> · <a href="/privacidad">Privacidad y cookies</a></p>
+    </div>
+  </footer>
+  <script type="module">
+    // Rellena los datos del titular que Miguel pone en su panel (Ajustes → Datos legales).
+    const pending = (t) => `<span class="pending">${t} (pendiente)</span>`;
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    try {
+      const { settings: s } = await (await fetch('/api/info')).json();
+      const set = (k, html) => document.querySelectorAll(`[data-legal="${k}"]`).forEach((el) => (el.innerHTML = html));
+      set('name', s.legalName ? esc(s.legalName) : pending('Nombre y apellidos'));
+      set('nif', s.nif ? esc(s.nif) : pending('NIF'));
+      set('email', s.email ? `<a href="mailto:${esc(s.email)}">${esc(s.email)}</a>` : pending('Correo de contacto'));
+      set('instagram', `<a href="https://www.instagram.com/${esc(s.instagram)}/" target="_blank" rel="noopener">@${esc(s.instagram)}</a>`);
+    } catch {
+      /* si no carga, se quedan los textos por defecto */
+    }
+  </script>
+</body>
+</html>

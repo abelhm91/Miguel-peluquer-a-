@@ -19,6 +19,8 @@ export const DEFAULT_SETTINGS = {
   minNoticeMinutes: 120, // antelación mínima para reservar online
   maxDaysAhead: 365, // días vista (como mínimo siempre hasta las próximas Fallas)
   bookingNote: '',
+  legalName: '', // nombre y apellidos del titular (aviso legal)
+  nif: '', // NIF/DNI del titular (aviso legal)
 };
 
 /** Adaptador para un binding D1 de Cloudflare. */

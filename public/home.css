@@ -379,7 +379,8 @@
   background: var(--night-2);
 }
 
-.salon .address span {
+.salon .address span,
+.salon .map__load span {
   color: var(--ivory-2);
 }
 

@@ -769,7 +769,7 @@ function detailsView() {
       </div>
       ${totalPrice() ? `<p class="price-line">${ICON('euro')}<span><strong>${totalPrice().replace(' en total', '')}</strong> ${state.extra.length ? 'en total' : ''} · se paga en el salón</span></p>` : ''}
       <div class="hp" aria-hidden="true"><label>No rellenar <input name="website" tabindex="-1" autocomplete="off"></label></div>
-      <p class="fineprint">Solo uso tus datos para gestionar esta cita.</p>
+      <p class="fineprint">Solo uso tus datos para gestionar esta cita. <a href="/privacidad" target="_blank" rel="noopener">Privacidad</a></p>
     </form>`;
 }
 
@@ -1127,3 +1127,12 @@ async function submit() {
 }
 
 boot();
+
+// Mapa bajo demanda: Google Maps no se carga hasta que la clienta lo pide.
+document.querySelector('[data-map-load]')?.addEventListener('click', (e) => {
+  const f = document.createElement('iframe');
+  f.title = 'Mapa: Calle del Cid, 12, Paterna';
+  f.referrerPolicy = 'no-referrer-when-downgrade';
+  f.src = 'https://www.google.com/maps?q=Calle+del+Cid+12,+46980+Paterna,+Valencia&z=16&output=embed';
+  e.currentTarget.replaceWith(f);
+});

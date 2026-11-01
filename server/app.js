@@ -112,6 +112,8 @@ function publicSettings(s, today) {
     fallasEnd: nextFallasEnd(today),
     minNoticeMinutes: s.minNoticeMinutes,
     bookingNote: s.bookingNote,
+    legalName: s.legalName,
+    nif: s.nif,
     bookingOpen: hasAnyHours(s),
   };
 }
@@ -594,7 +596,8 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       const patch = {};
       if ('hours' in body) patch.hours = validateHours(body.hours);
       for (const k of ['phone', 'whatsapp']) if (k in body) patch[k] = cleanPhone(body[k]);
-      for (const k of ['email', 'instagram', 'address', 'city']) if (k in body) patch[k] = str(body[k], 120);
+      for (const k of ['email', 'instagram', 'address', 'city', 'legalName']) if (k in body) patch[k] = str(body[k], 120);
+      if ('nif' in body) patch.nif = str(body.nif, 20).toUpperCase();
       if ('bookingNote' in body) patch.bookingNote = str(body.bookingNote, 400);
       const ints = { slotStep: [5, 120], minNoticeMinutes: [0, 60 * 24 * 7], maxDaysAhead: [1, 400] };
       for (const [k, [lo, hi]] of Object.entries(ints)) {
