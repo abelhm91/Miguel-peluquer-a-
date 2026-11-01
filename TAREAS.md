@@ -28,4 +28,3 @@ Estados: `pendiente` · `en curso` · `en revisión (PR #…)` · `hecha`
 - Precios reales, horario definitivo, nombre y NIF en Ajustes → Datos legales.
 - Fotos de sus trabajos.
 - Dominio.
-
