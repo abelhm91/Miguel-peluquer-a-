@@ -257,7 +257,7 @@ function validateService(body) {
 const INSERT_IF_FREE = `
   INSERT INTO bookings (code, token, service_id, service_name, date, start_min, end_min, name, phone, email, notes, source, party, price)
   SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-  WHERE NOT EXISTS (SELECT 1 FROM bookings WHERE date = ? AND status = 'confirmed' AND start_min < ? AND end_min > ?)
+  WHERE NOT EXISTS (SELECT 1 FROM bookings WHERE date = ? AND status = 'confirmed' AND start_min < ? AND end_min > ? AND id <> ?)
     AND NOT EXISTS (SELECT 1 FROM blocks WHERE date = ? AND start_min < ? AND end_min > ?)`;
 
 const INSERT_ANY = `
@@ -292,7 +292,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     return out;
   }
 
-  async function createBooking(body, { source }) {
+  async function createBooking(body, { source, exceptId = null }) {
     const settings = await getSettings(db);
     const service = await getService(Number(body.serviceId) || 0);
     if (!service || (!service.active && source === 'web')) throw bad('Ese servicio no está disponible.');
@@ -333,7 +333,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       : baseNotes;
 
     if (source === 'web') {
-      const slots = await freeSlots(db, settings, date, duration, now());
+      const slots = await freeSlots(db, settings, date, duration, now(), { excludeBookingId: exceptId });
       if (!slots.includes(start)) throw new HttpError(409, 'Vaya, esa hora acaba de ocuparse. Elige otra, por favor.');
     } else if (end > 1440) {
       throw bad('La cita no puede pasar de medianoche.');
@@ -347,7 +347,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       const values = [code, token, service.id, label, date, start, end, name, phone, email, notes, source, party.length > 1 ? JSON.stringify(party) : '', total];
       let r;
       try {
-        r = force ? await db.run(INSERT_ANY, ...values) : await db.run(INSERT_IF_FREE, ...values, date, end, start, date, end, start);
+        r = force ? await db.run(INSERT_ANY, ...values) : await db.run(INSERT_IF_FREE, ...values, date, end, start, exceptId ?? 0, date, end, start);
       } catch (e) {
         if (/UNIQUE/i.test(String(e?.message))) continue; // código repetido: probar otro
         throw e;
@@ -359,6 +359,14 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       return { ...bookingRow(row, { full: source === 'admin' }), token };
     }
     throw new HttpError(500, 'No se ha podido guardar la cita. Inténtalo de nuevo.');
+  }
+
+  /** id de la cita que se está cambiando (si el enlace es válido), para no contarla como ocupada. */
+  async function exceptFrom(url) {
+    const code = (url.searchParams.get('except') || '').toUpperCase();
+    if (!code) return null;
+    const row = await db.get("SELECT id, token FROM bookings WHERE code = ? AND status = 'confirmed'", code);
+    return row && safeEqual(row.token, url.searchParams.get('t') || '') ? row.id : null;
   }
 
   async function route(req, url) {
@@ -387,7 +395,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       const count = Math.min(62, Math.max(1, Number(url.searchParams.get('n')) || 14));
       const extras = await extrasFrom(service, { extra: url.searchParams.get('extra'), people: url.searchParams.get('people') });
       const total = service.duration + extras.reduce((a, x) => a + x.svc.duration, 0);
-      return json(200, { days: await daySummary(db, settings, from, count, total, n) });
+      return json(200, { days: await daySummary(db, settings, from, count, total, n, { excludeBookingId: await exceptFrom(url) }) });
     }
 
     if (m === 'GET' && path === '/api/slots') {
@@ -398,7 +406,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       if (!isValidDate(date)) throw bad('Fecha no válida.');
       const extras = await extrasFrom(service, { extra: url.searchParams.get('extra'), people: url.searchParams.get('people') });
       const total = service.duration + extras.reduce((a, x) => a + x.svc.duration, 0);
-      const slots = (await freeSlots(db, settings, date, total, now())).map(toHHMM);
+      const slots = (await freeSlots(db, settings, date, total, now(), { excludeBookingId: await exceptFrom(url) })).map(toHHMM);
       return json(200, { date, slots });
     }
 
@@ -417,7 +425,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
         throw new HttpError(429, 'Has hecho varias reservas seguidas. Espera un rato o escríbeme por Instagram (@peinados.migueldelacruz).');
       }
       if (str(body.website)) return json(201, { ok: true }); // trampa anti-spam
-      const created = await createBooking(body, { source: 'web' });
+      const created = await createBooking(body, { source: 'web', exceptId: old?.id ?? null });
       if (old) {
         await db.run("UPDATE bookings SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ? AND status = 'confirmed'", old.id);
         created.replaced = { ok: true, code: old.code };
@@ -495,6 +503,24 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
         to
       );
       return json(200, { bookings: rows.map((r) => bookingRow(r, { full: true })) });
+    }
+
+    if (m === 'GET' && path === '/api/admin/range') {
+      // Resumen por día (para la tira de la semana): citas confirmadas y euros previstos.
+      const from = url.searchParams.get('from');
+      if (!isValidDate(from)) throw bad('Fecha no válida.');
+      const n = Math.min(62, Math.max(1, Number(url.searchParams.get('n')) || 7));
+      const to = addDays(from, n - 1);
+      const rows = await db.all("SELECT date, price, party FROM bookings WHERE status = 'confirmed' AND date >= ? AND date <= ?", from, to);
+      const days = Array.from({ length: n }, (_, i) => ({ date: addDays(from, i), count: 0, people: 0, euros: 0 }));
+      for (const r of rows) {
+        const d = days.find((x) => x.date === r.date);
+        if (!d) continue;
+        d.count += 1;
+        d.people += Math.max(1, parseParty(r.party).length);
+        d.euros += priceNum(r.price) ?? 0;
+      }
+      return json(200, { days });
     }
 
     if (m === 'POST' && path === '/api/admin/bookings') {

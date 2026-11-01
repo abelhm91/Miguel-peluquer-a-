@@ -883,3 +883,112 @@
   opacity: 0.75;
   margin-left: 2px;
 }
+
+/* ---------- sexta ronda ---------- */
+
+/* tarjeta de Instagram: el icono es un círculo, no un óvalo */
+.insta-card > .insta-card__icon {
+  display: grid;
+  flex: none;
+  width: 48px;
+}
+
+.insta-card > span:not(.insta-card__icon) {
+  flex: 1;
+}
+
+.insta-card > span span {
+  overflow-wrap: break-word;
+}
+
+/* botón de reservar arriba en móvil mientras no está la barra de abajo */
+@media (max-width: 920px) {
+  .topbar .btn {
+    display: inline-flex;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    margin-left: auto;
+  }
+
+  body.cta-bottom .topbar .btn {
+    display: none;
+  }
+}
+
+/* las filas de Fallas se ven pulsables */
+.fday__go {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .fday {
+    grid-template-columns: 3.4em 2.2ch 1fr auto auto;
+  }
+
+  .fday__go {
+    display: block;
+    width: 18px;
+    height: 18px;
+    color: var(--gold-bright);
+  }
+}
+
+.fallas__cap {
+  font-size: 0.875rem;
+  color: var(--ivory-2);
+}
+
+/* menú de capítulos en móvil: se nota que se desliza */
+@media (max-width: 760px) {
+  .topnav {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+}
+
+/* la espina dorada también se ve dorada en los capítulos claros */
+.season--light::before,
+.season--stone::before {
+  opacity: 0.9;
+}
+
+/* móvil: el botón dorado de Fallas más arriba */
+@media (max-width: 600px) {
+  .fallas__lede {
+    margin-top: 14px;
+  }
+
+  .countdown {
+    margin-top: 14px;
+  }
+
+  .fallas__picker {
+    margin-top: 18px;
+  }
+
+  .fallas__actions {
+    margin-top: 20px;
+  }
+}
+
+.footer__links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.topnav a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.salon__grid > *,
+.insta-card > span:not(.insta-card__icon) {
+  min-width: 0;
+}
+
+.salon__info {
+  grid-template-columns: minmax(0, 1fr);
+}

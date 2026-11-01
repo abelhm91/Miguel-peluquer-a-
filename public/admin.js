@@ -1,6 +1,6 @@
 import {
   $, $$, esc, api, addDays, longDate, shortDate, DAY_NAMES, prettyTime, toMin, duration,
-  phoneHref, whatsappHref, prettyPhone,
+  phoneHref, whatsappHref, prettyPhone, euros, priceValue, weekday, dow, dayNum,
 } from './shared.js';
 
 const ICON = (id) => `<svg class="icon" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -130,10 +130,17 @@ function apptHtml(b) {
     <li class="appt ${cancelled ? 'is-cancelled' : ''}">
       <div class="appt__time">${prettyTime(b.start)}<span>${prettyTime(b.end)}</span></div>
       <div class="appt__who">
-        <strong>${esc(b.name)}</strong>
+        <strong>${esc(b.name)}${b.price ? ` <span class="appt__price">${esc(euros(b.price))}</span>` : ''}</strong>
         <span>${esc(b.service)} · ${duration(toMin(b.end) - toMin(b.start))}
           ${b.source === 'web' ? '<span class="tag tag--web">Web</span>' : '<span class="tag">Manual</span>'}
           ${cancelled ? '<span class="tag tag--off">Cancelada</span>' : ''}</span>
+        ${
+          b.party?.length > 1
+            ? `<ol class="appt__party">${b.party
+                .map((p) => `<li><b>${prettyTime(p.start)}</b> ${esc(p.name)} · <span>${esc(p.service)}${p.price ? ` · ${esc(euros(p.price))}` : ''}</span></li>`)
+                .join('')}</ol>`
+            : ''
+        }
         ${
           b.phone
             ? `<div class="appt__links">
@@ -143,7 +150,10 @@ function apptHtml(b) {
             : ''
         }
         ${b.email ? `<span class="muted small">${esc(b.email)}</span>` : ''}
-        ${b.notes ? `<div class="appt__notes">${esc(b.notes)}</div>` : ''}
+        ${(() => {
+          const notes = (b.notes || '').split('\n').filter((l) => !(b.party?.length > 1 && /personas seguidas:/.test(l))).join('\n');
+          return notes ? `<div class="appt__notes">${ICON('note')}<span>${esc(notes)}</span></div>` : '';
+        })()}
       </div>
       <div>
         ${
@@ -178,19 +188,67 @@ async function renderAgenda() {
   }
   if (st.date !== date) return;
 
+  // Huecos libres dentro del horario (entre citas y bloqueos confirmados).
+  const busy = [
+    ...day.bookings.filter((b) => b.status === 'confirmed').map((b) => [toMin(b.start), toMin(b.end)]),
+    ...day.blocks.map((k) => [toMin(k.start), Math.min(toMin(k.end), 1440)]),
+  ].sort((a, b) => a[0] - b[0]);
+  const gaps = [];
+  for (const [o, c] of day.open.map(([a, b]) => [toMin(a), toMin(b)])) {
+    let t = o;
+    for (const [b0, b1] of busy) {
+      if (b1 <= t || b0 >= c) continue;
+      if (b0 > t) gaps.push([t, b0]);
+      t = Math.max(t, b1);
+    }
+    if (t < c) gaps.push([t, c]);
+  }
+  const hhmm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+  const gapHtml = ([a, b]) => `
+    <li class="gap"><span class="gap__time">${hhmm(a)}–${hhmm(b)}</span><span>Libre · ${duration(b - a)}</span>
+      <button class="link-btn" data-gap="${hhmm(a).padStart(5, '0')}">${ICON('plus')}Apuntar cita</button></li>`;
+
   const items = [
     ...day.bookings.map((b) => ({ t: toMin(b.start), html: apptHtml(b), cancelled: b.status !== 'confirmed' })),
     ...day.blocks.map((k) => ({ t: toMin(k.start), html: blockHtml(k) })),
-  ].sort((a, b) => a.t - b.t || (a.cancelled ? 1 : -1));
-  const active = day.bookings.filter((b) => b.status === 'confirmed').length;
+    ...gaps.filter(([a, b]) => b - a >= 30).map((g) => ({ t: g[0], html: gapHtml(g), gap: true })),
+  ].sort((a, b) => a.t - b.t || (a.gap ? 1 : 0) - (b.gap ? 1 : 0) || (a.cancelled ? 1 : -1));
+  const confirmed = day.bookings.filter((b) => b.status === 'confirmed');
+  const active = confirmed.length;
+  const people = confirmed.reduce((n, b) => n + Math.max(1, b.party?.length || 0), 0);
+  const total = confirmed.reduce((n, b) => n + (priceValue(b.price) ?? 0), 0);
   const openTxt = day.open.length ? day.open.map(([a, b]) => `${prettyTime(a)}–${prettyTime(b)}`).join(', ') : 'Cerrado según tu horario';
+
+  // Semana (lunes a domingo) del día que se ve.
+  const monday = addDays(date, -weekday(date));
+  let week = [];
+  try {
+    week = (await api(`/api/admin/range?from=${monday}&n=7`)).days;
+  } catch {
+    /* la tira de la semana es opcional */
+  }
+  if (st.date !== date) return;
+  const weekHtml = week.length
+    ? `<nav class="week" aria-label="Semana">${week
+        .map(
+          (d) => `<button type="button" class="week__day${d.date === date ? ' is-on' : ''}${d.date === today() ? ' is-today' : ''}" data-goto-day="${d.date}" aria-pressed="${d.date === date}">
+          <span class="week__dow">${dow(d.date)}</span><span class="week__num">${dayNum(d.date)}</span>
+          <span class="week__count">${d.count ? `${d.count} ${d.count === 1 ? 'cita' : 'citas'}` : '—'}</span></button>`
+        )
+        .join('')}</nav>`
+    : '';
 
   const services = st.overview.services;
   view.innerHTML = `
     <div class="view-head">
       <div>
         <div class="day-title">${date === today() ? 'Hoy, ' : ''}${longDate(date)}</div>
-        <div class="day-sub">${active} ${active === 1 ? 'cita' : 'citas'} · ${openTxt}</div>
+        <div class="day-stats">
+          <span><b>${active}</b> ${active === 1 ? 'cita' : 'citas'}</span>
+          ${people > active ? `<span><b>${people}</b> personas</span>` : ''}
+          ${total ? `<span><b>${euros(String(total))}</b> previstos</span>` : ''}
+          <span class="muted">${openTxt}</span>
+        </div>
       </div>
       <div class="daynav">
         <button class="icon-btn" data-day="-1" aria-label="Día anterior">${ICON('back')}</button>
@@ -200,6 +258,7 @@ async function renderAgenda() {
         <input type="date" id="pick-date" value="${date}">
       </div>
     </div>
+    ${weekHtml}
     <div class="agenda-grid">
       <section aria-label="Citas del día">
         ${items.length ? `<ul class="timeline">${items.map((i) => i.html).join('')}</ul>` : `<div class="empty">No hay citas este día.</div>`}
@@ -247,6 +306,22 @@ async function renderAgenda() {
       const d = Number(b.dataset.day);
       st.date = d === 0 ? today() : addDays(st.date, d);
       renderAgenda();
+    })
+  );
+  $$('[data-goto-day]', view).forEach((b) =>
+    b.addEventListener('click', () => {
+      st.date = b.dataset.gotoDay;
+      renderAgenda();
+    })
+  );
+  // "Apuntar cita" en un hueco libre: abre el formulario con esa hora.
+  $$('[data-gap]', view).forEach((b) =>
+    b.addEventListener('click', () => {
+      const box = $('#new-appt').closest('details');
+      box.open = true;
+      $('#na-time').value = b.dataset.gap;
+      box.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      $('#na-name').focus({ preventScroll: true });
     })
   );
   $('#pick-date').addEventListener('change', (e) => {
@@ -345,7 +420,10 @@ async function renderUpcoming() {
             .map(
               ([d, list]) => `
       <section class="up-day">
-        <h2><a href="#agenda" data-goto="${d}">${d === today() ? 'Hoy, ' : ''}${longDate(d)}</a> <span class="muted">· ${list.length} ${list.length === 1 ? 'cita' : 'citas'}</span></h2>
+        <h2><a href="#agenda" data-goto="${d}">${d === today() ? 'Hoy, ' : ''}${longDate(d)}</a> <span class="muted">· ${list.length} ${list.length === 1 ? 'cita' : 'citas'}${(() => {
+          const t = list.reduce((n, b) => n + (priceValue(b.price) ?? 0), 0);
+          return t ? ` · ${euros(String(t))}` : '';
+        })()}</span></h2>
         <ul class="timeline">${list.map(apptHtml).join('')}</ul>
       </section>`
             )
@@ -393,7 +471,7 @@ function renderHours() {
                       .join('')
                   : '<span class="muted">Cerrado</span>'
               }
-              ${hours[i].length ? `<button class="link-btn" data-add="${i}">${ICON('plus')}Añadir tramo</button>` : ''}
+              ${hours[i].length ? `<div class="hrow__tools"><button class="link-btn" data-add="${i}">${ICON('plus')}Añadir tramo</button>${i < 5 ? `<button class="link-btn" data-copy-weekdays="${i}">Copiar de lunes a viernes</button>` : ''}</div>` : ''}
             </div>
           </div>`
         ).join('')}
@@ -410,6 +488,14 @@ function renderHours() {
     $$('input[type=time]', view).forEach((inp) =>
       inp.addEventListener('change', () => {
         hours[inp.dataset.d][inp.dataset.r][inp.dataset.k] = inp.value;
+      })
+    );
+    $$('[data-copy-weekdays]', view).forEach((b) =>
+      b.addEventListener('click', () => {
+        const src = hours[Number(b.dataset.copyWeekdays)];
+        for (let d = 0; d < 5; d++) hours[d] = structuredClone(src);
+        draw();
+        toast('Copiado de lunes a viernes. Recuerda guardar.');
       })
     );
     $$('[data-add]', view).forEach((b) =>
@@ -470,9 +556,42 @@ function renderServices() {
     <div class="view-head"><h1>Servicios</h1></div>
     <p class="muted" style="margin:-8px 0 16px">La duración decide cuánto hueco ocupa cada cita. El precio va en euros (escribe solo el número, por ejemplo 50). Si lo dejas vacío no se muestra.</p>
     <datalist id="cats">${cats.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
-    <div class="stack">${services.map(serviceForm).join('')}</div>
-    <h2 style="margin:28px 0 12px;font-size:1.125rem">Nuevo servicio</h2>
-    ${serviceForm()}`;
+    <ol class="svc-items">${services
+      .map(
+        (sv, i) => `
+      <li><details class="svc-item${sv.active ? '' : ' is-off'}">
+        <summary>
+          <span class="svc-item__main"><strong>${esc(sv.name)}</strong>
+            <span class="muted">${esc(sv.category || 'Sin categoría')} · ${duration(sv.duration)}${sv.active ? '' : ' · <span class="tag">Oculto</span>'}</span></span>
+          <span class="svc-item__price">${sv.price ? esc(euros(sv.price)) : '<span class="muted">Sin precio</span>'}</span>
+          <span class="svc-item__move">
+            <button type="button" class="icon-btn" data-move="-1" data-id="${sv.id}" aria-label="Subir ${esc(sv.name)}" ${i === 0 ? 'disabled' : ''}>${ICON('up')}</button>
+            <button type="button" class="icon-btn" data-move="1" data-id="${sv.id}" aria-label="Bajar ${esc(sv.name)}" ${i === services.length - 1 ? 'disabled' : ''}>${ICON('down')}</button>
+          </span>
+          <span class="svc-item__edit">Editar</span>
+        </summary>
+        ${serviceForm(sv)}
+      </details></li>`
+      )
+      .join('')}</ol>
+    <details class="svc-item svc-item--new">
+      <summary><span class="svc-item__main"><strong>${ICON('plus')} Nuevo servicio</strong></span></summary>
+      ${serviceForm()}
+    </details>`;
+
+  $$('[data-move]', view).forEach((b) =>
+    b.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const list = [...st.overview.services];
+      const i = list.findIndex((x) => x.id === Number(b.dataset.id));
+      const j = i + Number(b.dataset.move);
+      if (i < 0 || j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      await act(b, () => Promise.all(list.map((x, k) => (x.sort === k ? null : api(`/api/admin/services/${x.id}`, { method: 'PUT', body: { sort: k } })))), 'Orden guardado').catch(() => null);
+      await loadOverview();
+      renderServices();
+    })
+  );
 
   $$('form[data-svc]', view).forEach((f) =>
     f.addEventListener('submit', async (e) => {

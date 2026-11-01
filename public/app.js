@@ -41,7 +41,9 @@ function totalPrice() {
   const sum = vals.reduce((a, b) => a + b, 0);
   return `${Number.isInteger(sum) ? sum : sum.toFixed(2).replace('.', ',')} € en total`;
 }
-const extraParam = () => (state.extra.length ? `&extra=${state.extra.map((e) => e.serviceId).join(',')}` : '');
+const extraParam = () =>
+  (state.extra.length ? `&extra=${state.extra.map((e) => e.serviceId).join(',')}` : '') +
+  (state.reschedule ? `&except=${state.reschedule.code}&t=${encodeURIComponent(state.reschedule.token)}` : '');
 /** "Peinado de fallera · 2 personas" o "Peinado de fallera + Trenzas" */
 function groupLabel() {
   const s = service();
@@ -241,6 +243,8 @@ async function renderFallas() {
     return;
   }
   daysEl.innerHTML = Array.from({ length: 5 }, () => `<li><span class="skeleton fallas__sk"></span></li>`).join('');
+  const cap = $('[data-fallas-cap]');
+  if (cap) cap.hidden = false;
   try {
     const { days } = await api(`/api/days?service=${state.fallasSvc}&from=${plantà}&n=5`);
     daysEl.innerHTML = days
@@ -263,6 +267,7 @@ async function renderFallas() {
           <span class="fday__num">${n}</span>
           <span class="fday__tag">${label || '&nbsp;'}</span>
           <span class="fday__free${state_ === 'Pocas horas' ? ' is-few' : ''}">${state_}</span>
+          ${d.free ? `<svg class="icon fday__go" aria-hidden="true"><use href="#i-next"/></svg>` : ''}
         </button></li>`;
       })
       .join('');
@@ -366,7 +371,13 @@ function setupTopbar() {
     { rootMargin: '-64px 0px 0px 0px' }
   );
   io.observe($('.fallas__actions'));
-  const io2 = new IntersectionObserver(([en]) => cta.classList.toggle('is-on', !en.isIntersecting), { rootMargin: '-64px 0px 0px 0px' });
+  const io2 = new IntersectionObserver(
+    ([en]) => {
+      cta.classList.toggle('is-on', !en.isIntersecting);
+      document.body.classList.toggle('cta-bottom', !en.isIntersecting);
+    },
+    { rootMargin: '-64px 0px 0px 0px' }
+  );
   io2.observe($('#fallas'));
 }
 
@@ -424,6 +435,7 @@ function openBooking(serviceId = null, { date = null, fallas = false } = {}) {
   }
   if (!dlg.open) {
     dlg.showModal();
+    content.focus({ preventScroll: true });
     document.documentElement.style.overflow = 'hidden';
     if (location.hash !== '#reservar') history.pushState({ booking: true }, '', '#reservar');
   }
@@ -539,6 +551,19 @@ function closedView() {
       <p>Estoy terminando de preparar mi agenda online. Mientras tanto, pídeme cita directamente:</p>
       <div class="done__actions">${contact.join('')}</div>
     </div>`;
+}
+
+/** Opciones del selector de servicio, agrupadas por capítulos como en la portada. */
+function serviceOptions(selected) {
+  const named = CHAPTERS.flatMap((c) => c.cats || []);
+  return CHAPTERS.map((c) => {
+    const list = state.services.filter((sv) => (c.cats ? c.cats.includes(sv.category) : !named.includes(sv.category)));
+    return list.length
+      ? `<optgroup label="${esc(c.title)}">${list
+          .map((x) => `<option value="${x.id}" ${x.id === selected ? 'selected' : ''}>${esc(x.name)}${x.price ? ` · ${esc(euros(x.price))}` : ''}</option>`)
+          .join('')}</optgroup>`
+      : '';
+  }).join('');
 }
 
 /* Los servicios en la reserva siguen los capítulos de la portada (la temporada de Miguel). */
@@ -677,9 +702,7 @@ function timeView() {
         ${state.extra
           .map(
             (e, i) => `<li><label for="x-svc-${i}">Persona ${i + 2}</label>
-          <select class="select" id="x-svc-${i}" data-extra-svc="${i}">${state.services
-            .map((x) => `<option value="${x.id}" ${x.id === Number(e.serviceId) ? 'selected' : ''}>${esc(x.name)} · ${duration(x.duration)}${x.price ? ` · ${esc(euros(x.price))}` : ''}</option>`)
-            .join('')}</select></li>`
+          <select class="select" id="x-svc-${i}" data-extra-svc="${i}">${serviceOptions(Number(e.serviceId))}</select></li>`
           )
           .join('')}
       </ol>`
@@ -791,7 +814,7 @@ function doneView() {
         <button type="button" class="btn btn--ghost" data-ics>${ICON('cal')}Añadir al calendario</button>
         <button type="button" class="btn btn--ghost" data-copy>${ICON('copy')}<span>Copiar enlace</span></button>
       </div>
-      <p class="done__link"><a href="${citaUrl(r)}">Ver o cancelar mi cita</a></p>
+      <p class="done__link"><a class="btn btn--ghost btn--block" href="${citaUrl(r)}">Ver, cambiar o cancelar mi cita</a></p>
     </div>`;
 }
 
@@ -844,7 +867,7 @@ function renderSummary(step) {
   const foot = $('#booking-foot');
   foot.classList.toggle('is-hidden', step === 'done' || closed);
   $('#foot-summary').innerHTML = s
-    ? `<strong>${esc(s.name)}${state.extra.length ? ' y más' : ''}</strong><span>${state.extra.length ? `${peopleCount()} personas · ` : ''}${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(totalMin())}${totalPrice() ? ` · <b>${totalPrice().replace(' en total', '')}</b>` : ''}</span>`
+    ? `<strong>${esc(s.name)}${state.extra.length ? ` y ${state.extra.length} más` : ''}</strong><span>${when ? `${shortDate(state.date)} · ${prettyTime(state.time)}` : duration(totalMin())}${totalPrice() ? ` · <b>${totalPrice().replace(' en total', '')}</b>` : ''}</span>`
     : `<span>Elige un servicio</span>`;
   const fb = $('#foot-next');
   fb.textContent = label;
@@ -997,12 +1020,21 @@ async function loadDays({ keep = false, prefer = null, peopleChange = false } = 
     state.daysLoading = false;
     const kept = keepDate && state.days.find((d) => d.date === keepDate && d.free);
     if (kept) return selectDate(kept.date, keepTime);
-    const first = (prefer && state.days.find((d) => d.free && d.date >= prefer)) || state.days.find((d) => d.free);
+    let first = (prefer && state.days.find((d) => d.free && d.date >= prefer)) || state.days.find((d) => d.free);
+    if (peopleChange && keepDate) {
+      // El día más cercano a partir del que había elegido (nunca antes).
+      first = state.days.find((d) => d.free && d.date >= keepDate) || null;
+      if (!first) {
+        state.notice = `El ${longDate(keepDate).toLowerCase()} no tiene hueco para ${peopleCount()} personas seguidas y en estas fechas tampoco queda. Mira las fechas siguientes o escríbeme por Instagram y lo apañamos.`;
+        state.daysLoading = false;
+        return selectDate(keepDate);
+      }
+    }
     state.notice =
       prefer && first && first.date !== prefer && !peopleChange
         ? `El ${longDate(prefer).toLowerCase()} ya no tiene hueco para esta cita: te enseño el ${longDate(first.date).toLowerCase()}. Si lo necesitas ese día, escríbeme por Instagram.`
         : peopleChange && keepDate && first && first.date !== keepDate
-        ? `El ${longDate(keepDate).toLowerCase()} ya no tiene hueco para ${peopleCount()} ${peopleCount() === 1 ? 'persona' : 'personas'} seguidas: te enseño el ${longDate(first.date).toLowerCase()}.`
+        ? `Cambiado: el ${longDate(keepDate).toLowerCase()} no tiene hueco para ${peopleCount()} ${peopleCount() === 1 ? 'persona' : 'personas'} seguidas, así que te enseño el ${longDate(first.date).toLowerCase()}.`
         : '';
     if (first) return selectDate(first.date);
   } catch (e) {

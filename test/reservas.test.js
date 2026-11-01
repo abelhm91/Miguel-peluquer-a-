@@ -191,6 +191,12 @@ test('cambiar la hora: reutiliza el teléfono y cancela la anterior después', a
   assert.deepEqual(b.data.replaced, { ok: true, code: a.data.code });
   const old = await call(`/api/bookings/${a.data.code}?t=${a.data.token}`);
   assert.equal(old.data.status, 'cancelled');
+  // Mover 30 minutos una cita que se solapa consigo misma también funciona.
+  const c = b.data;
+  const slots = (await call(`/api/slots?service=${svc.id}&date=${MONDAY}&except=${c.code}&t=${c.token}`)).data.slots;
+  assert.ok(slots.includes('16:30'), 'sus propias horas aparecen libres');
+  const d = await call('/api/bookings', { method: 'POST', body: { serviceId: svc.id, date: MONDAY, time: '16:30', name: 'Amparo', replaces: { code: c.code, token: c.token } } });
+  assert.equal(d.status, 201);
 });
 
 test('precio total guardado en la cita', async () => {

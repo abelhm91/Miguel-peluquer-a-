@@ -555,3 +555,341 @@ details.card[open] > summary {
 .toast.is-error {
   background: var(--danger);
 }
+
+/* ---------- marca: barra negra y oro ---------- */
+
+.appbar {
+  background: var(--night);
+  border-bottom-color: var(--night-line);
+  color: var(--ivory);
+}
+
+.appbar .brand {
+  gap: 10px;
+}
+
+.appbar .brand__word {
+  font-family: 'Jost', var(--font);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+}
+
+.brand__sub {
+  font-weight: 500;
+  color: var(--ivory-2);
+  padding-left: 10px;
+  border-left: 1px solid var(--night-line);
+}
+
+.appbar .tabs a {
+  color: var(--ivory-2);
+}
+
+.appbar .tabs a:hover {
+  background: var(--night-2);
+  color: var(--ivory);
+}
+
+.appbar .tabs a[aria-current='page'] {
+  background: var(--gold-bright);
+  color: var(--night);
+}
+
+.appbar .icon-btn {
+  color: var(--ivory);
+}
+
+.appbar .icon-btn:hover {
+  background: var(--night-2);
+}
+
+.appbar__web {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 10px;
+  color: var(--ivory-2);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.appbar__web:hover {
+  color: var(--gold-bright);
+}
+
+.view h1,
+.day-title {
+  font-family: 'Jost', var(--font);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 640px) {
+  .appbar__web span,
+  .brand__sub {
+    display: none;
+  }
+}
+
+/* ---------- agenda: semana, resumen y huecos libres ---------- */
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin: -4px 0 16px;
+}
+
+.week__day {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  min-height: 64px;
+  padding: 8px 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  cursor: pointer;
+}
+
+.week__day:hover {
+  border-color: var(--ink);
+}
+
+.week__day.is-on {
+  background: var(--night);
+  border-color: var(--night);
+  color: var(--ivory);
+}
+
+.week__day.is-today .week__num {
+  text-decoration: underline;
+  text-decoration-color: var(--gold);
+  text-underline-offset: 3px;
+}
+
+.week__dow {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.week__day.is-on .week__dow,
+.week__day.is-on .week__count {
+  color: var(--ivory-2);
+}
+
+.week__num {
+  font-family: 'Jost', var(--font);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.week__count {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.day-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  font-size: 0.9375rem;
+}
+
+.day-stats b {
+  font-weight: 700;
+}
+
+.gap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 8px 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.gap__time {
+  font-weight: 700;
+  color: var(--ink-2);
+  min-width: 76px;
+}
+
+.gap .link-btn {
+  margin-left: auto;
+  min-height: 40px;
+  color: var(--gold-ink);
+}
+
+.appt__price {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  font-size: 0.875rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.appt__party {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  display: grid;
+  gap: 2px;
+  font-size: 0.9375rem;
+}
+
+.appt__party span {
+  color: var(--muted);
+}
+
+.appt__notes {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.appt__notes .icon {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  flex: none;
+  color: var(--muted);
+}
+
+/* ---------- servicios: lista compacta ---------- */
+
+.svc-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.svc-item {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.svc-item > summary {
+  list-style: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 16px;
+  cursor: pointer;
+}
+
+.svc-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.svc-item__main {
+  display: grid;
+  min-width: 0;
+}
+
+.svc-item__main .muted {
+  font-size: 0.875rem;
+}
+
+.svc-item__price {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.svc-item__move {
+  display: flex;
+}
+
+.svc-item__move .icon-btn {
+  width: 40px;
+  height: 40px;
+}
+
+.svc-item__edit {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.svc-item[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.svc-item[open] .svc-item__edit {
+  visibility: hidden;
+}
+
+.svc-item .svc-edit {
+  border: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.svc-item.is-off .svc-item__main strong {
+  color: var(--muted);
+}
+
+.svc-item--new {
+  margin-top: 16px;
+  border-style: dashed;
+}
+
+@media (max-width: 560px) {
+  .svc-item > summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .svc-item__move {
+    grid-column: 1;
+  }
+
+  .svc-item__edit {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .week {
+    gap: 4px;
+  }
+
+  .week__count {
+    font-size: 0.6875rem;
+  }
+}
+
+.hrow__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.svc-item--new strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabs {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}

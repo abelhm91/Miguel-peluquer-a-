@@ -8,7 +8,7 @@
   <link rel="icon" href="/assets/logo-sello.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@500;600&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/admin.css">
 </head>
@@ -24,6 +24,9 @@
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v15H5zM8.5 9h7M8.5 12.5h7M8.5 16h4"/></symbol>
     <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4.5h4.5v15H14M10 8l-4 4 4 4M6 12h9"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-web" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   </svg>
 
@@ -47,7 +50,7 @@
     <header class="appbar">
       <div class="appbar__inner">
         <a class="brand" href="/" title="Ver la web pública">
-          <img src="/assets/logo-sello.png" alt="" width="32" height="32"><span>Agenda</span>
+          <img src="/assets/logo-sello.png" alt="" width="32" height="32"><span class="brand__word">Pentinats</span>
         </a>
         <nav class="tabs" aria-label="Secciones">
           <a href="#agenda" data-tab="agenda">Agenda</a>
@@ -56,6 +59,7 @@
           <a href="#servicios" data-tab="servicios">Servicios</a>
           <a href="#ajustes" data-tab="ajustes">Ajustes</a>
         </nav>
+        <a class="appbar__web" href="/" target="_blank" rel="noopener"><svg class="icon"><use href="#i-web"/></svg><span>Ver mi web</span></a>
         <button class="icon-btn" id="logout" title="Cerrar sesión" aria-label="Cerrar sesión"><svg class="icon"><use href="#i-out"/></svg></button>
       </div>
     </header>

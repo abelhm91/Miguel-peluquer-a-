@@ -66,14 +66,14 @@ export function computeSlots(settings, date, duration, busy, now = nowInMadrid()
   return out;
 }
 
-export async function freeSlots(db, settings, date, duration, now = nowInMadrid()) {
-  return computeSlots(settings, date, duration, await busyRanges(db, date), now);
+export async function freeSlots(db, settings, date, duration, now = nowInMadrid(), opts = {}) {
+  return computeSlots(settings, date, duration, await busyRanges(db, date, opts), now);
 }
 
 /** Resumen de los próximos `n` días: cuántos huecos libres tiene cada uno. */
-export async function daySummary(db, settings, from, n, duration, now = nowInMadrid()) {
+export async function daySummary(db, settings, from, n, duration, now = nowInMadrid(), opts = {}) {
   const to = addDays(from, n - 1);
-  const busy = await busyByDate(db, from, to);
+  const busy = await busyByDate(db, from, to, opts);
   const out = [];
   for (let i = 0; i < n; i++) {
     const date = addDays(from, i);

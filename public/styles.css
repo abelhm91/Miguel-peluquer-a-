@@ -397,3 +397,8 @@ textarea {
 * {
   scrollbar-color: var(--line-strong) transparent;
 }
+
+/* objetivos táctiles de al menos 44 px también en escritorio */
+.btn--small {
+  min-height: 44px;
+}

@@ -47,3 +47,8 @@ Tipografía: **Jost** (se cargan 400–600; los títulos usan 600), sans-serif g
 - Contraste por bandas: el negro es la marca y el blanco es donde se trabaja (servicios, reserva, panel). El flujo de reserva y el panel siguen en claro.
 - El dorado claro solo va sobre negro; sobre blanco se usa `--gold-ink`. El `--gold` medio nunca va en texto pequeño (no llega al contraste necesario); el texto va siempre en tinta.
 - Nada inventado: no hay precios, reseñas ni fotos de ejemplo en la interfaz.
+
+## Panel de Miguel (`/admin`)
+
+Modo Operate: precisión antes que expresión, con la marca en los detalles. Barra superior negra con el sello y «PENTINATS» en dorado, pestañas con la activa en oro, enlace «Ver mi web». Agenda con la tira de la semana (citas por día), resumen del día (citas, personas, euros previstos, horario), huecos libres entre citas con «Apuntar cita» y tarjetas de cita con personas, horas y precio. Servicios en lista compacta (nombre, categoría, duración, precio) que se despliega para editar, con flechas para ordenar. Horario con «Copiar de lunes a viernes».
+
