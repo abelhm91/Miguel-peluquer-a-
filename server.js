@@ -29,6 +29,7 @@ const api = createApi({
   adminPassword: process.env.ADMIN_PASSWORD,
   sessionSecret: process.env.SESSION_SECRET,
   secureCookies: process.env.NODE_ENV === 'production',
+  notifyEnv: process.env,
 });
 
 async function serveStatic(req, res, pathname) {

@@ -4,6 +4,7 @@
 import { getSettings, saveSettings } from './db.js';
 import { daySummary, freeSlots, hasAnyHours, busyRanges, openIntervals, effectiveMaxDays, nextFallasEnd } from './availability.js';
 import { addDays, isValidDate, nowInMadrid, toHHMM, toMinutes } from './time.js';
+import { channels, messageFor, notify } from './notify.js';
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -266,7 +267,14 @@ const INSERT_ANY = `
 
 /* ---------- aplicación ---------- */
 
-export function createApi({ db, adminPassword, sessionSecret, secureCookies = false, now = () => nowInMadrid() }) {
+export function createApi({ db, adminPassword, sessionSecret, secureCookies = false, now = () => nowInMadrid(), notifyEnv = {}, fetchImpl }) {
+  // Avisos a Miguel (Telegram / WhatsApp). Se envían sin hacer esperar a la clienta.
+  const send = (ctx, text) => {
+    const p = notify(notifyEnv, text, fetchImpl ?? fetch).catch((e) => console.error('aviso', e));
+    if (ctx?.waitUntil) ctx.waitUntil(p);
+  };
+  const fullRow = async (code) => bookingRow(await db.get('SELECT * FROM bookings WHERE code = ?', code), { full: true });
+
   const auth = makeAuth({ adminPassword, sessionSecret });
   const bookingLimiter = rateLimiter(6, 60 * 60 * 1000);
   const loginLimiter = rateLimiter(10, 15 * 60 * 1000);
@@ -369,7 +377,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
     return row && safeEqual(row.token, url.searchParams.get('t') || '') ? row.id : null;
   }
 
-  async function route(req, url) {
+  async function route(req, url, ctx) {
     const path = url.pathname;
     const m = req.method;
     const ip = req.headers.get('cf-connecting-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'local';
@@ -430,6 +438,10 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
         await db.run("UPDATE bookings SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ? AND status = 'confirmed'", old.id);
         created.replaced = { ok: true, code: old.code };
       }
+      if (channels(notifyEnv).length) {
+        const info = await fullRow(created.code);
+        send(ctx, messageFor(old ? 'changed' : 'new', { ...info, replacedCode: old?.code }, { siteUrl: url.origin }));
+      }
       return json(201, created);
     }
 
@@ -445,6 +457,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       if (!row || !safeEqual(row.token, String(body.token || ''))) throw new HttpError(404, 'No encuentro esa reserva.');
       if (row.status === 'confirmed') {
         await db.run("UPDATE bookings SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?", row.id);
+        if (channels(notifyEnv).length) send(ctx, messageFor('cancelled', bookingRow(row, { full: true }), { siteUrl: url.origin }));
       }
       return json(200, bookingRow(await db.get('SELECT * FROM bookings WHERE id = ?', row.id)));
     }
@@ -503,6 +516,17 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
         to
       );
       return json(200, { bookings: rows.map((r) => bookingRow(r, { full: true })) });
+    }
+
+    if (m === 'GET' && path === '/api/admin/notify') {
+      return json(200, { channels: channels(notifyEnv) });
+    }
+
+    if (m === 'POST' && path === '/api/admin/notify-test') {
+      await readJson(req);
+      if (!channels(notifyEnv).length) throw bad('Aún no hay ningún aviso configurado.');
+      const results = await notify(notifyEnv, messageFor('test'), fetchImpl ?? fetch);
+      return json(200, { results: Object.fromEntries(results) });
     }
 
     if (m === 'GET' && path === '/api/admin/range') {
@@ -621,11 +645,11 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
   }
 
   /** Devuelve la respuesta de la API, o null si la ruta no es de la API. */
-  return async function handleApi(req) {
+  return async function handleApi(req, ctx) {
     const url = new URL(req.url);
     if (!url.pathname.startsWith('/api/')) return null;
     try {
-      return await route(req, url);
+      return await route(req, url, ctx);
     } catch (err) {
       if (err instanceof HttpError) return json(err.status, { error: err.message });
       console.error(err);

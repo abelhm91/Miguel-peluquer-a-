@@ -674,7 +674,50 @@ function renderSettings() {
         </div>
       </div>
       <div class="savebar"><button class="btn" type="submit">Guardar ajustes</button></div>
+    </form>
+    <section class="card form notify-card" aria-labelledby="notify-h">
+      <h2 id="notify-h" style="font-size:1.0625rem">Avisos de reservas nuevas</h2>
+      <p class="notify-status" data-notify-status><span class="skeleton" style="display:block;height:20px;width:60%"></span></p>
+      <details class="notify-help">
+        <summary>Cómo activar los avisos por Telegram (recomendado)</summary>
+        <ol>
+          <li>En Telegram, abre <b>@BotFather</b>, escribe <code>/newbot</code> y sigue los pasos. Te dará un <b>token</b>.</li>
+          <li>Abre el chat con tu bot nuevo y envíale cualquier mensaje (por ejemplo «hola»).</li>
+          <li>Abre en el navegador <code>https://api.telegram.org/bot&lt;TU_TOKEN&gt;/getUpdates</code> y copia el número que aparece en <code>"chat":{"id": …}</code>.</li>
+          <li>En Cloudflare → tu Worker → Configuración → Variables y secretos, añade dos <b>Secretos</b>: <code>TELEGRAM_BOT_TOKEN</code> (el token) y <code>TELEGRAM_CHAT_ID</code> (el número). Implementa.</li>
+          <li>Vuelve aquí y pulsa «Enviar aviso de prueba».</li>
+        </ol>
+      </details>
+      <details class="notify-help">
+        <summary>Cómo activarlos por WhatsApp (CallMeBot, no oficial)</summary>
+        <ol>
+          <li>Guarda el número de CallMeBot que indica su web (callmebot.com → WhatsApp) y envíale por WhatsApp: <code>I allow callmebot to send me messages</code>.</li>
+          <li>Te responderá con tu <b>apikey</b>.</li>
+          <li>En Cloudflare añade los <b>Secretos</b> <code>CALLMEBOT_PHONE</code> (tu número con +34) y <code>CALLMEBOT_APIKEY</code>. Implementa.</li>
+        </ol>
+        <p class="muted small">Es un servicio gratuito de terceros: puede tardar o fallar alguna vez. Telegram es más fiable.</p>
+      </details>
+      <div><button type="button" class="btn btn--ghost" data-notify-test disabled>Enviar aviso de prueba</button></div>
+    </section>
+    <form hidden>
     </form>`;
+
+  // Estado de los avisos
+  api('/api/admin/notify')
+    .then(({ channels }) => {
+      const names = { telegram: 'Telegram', whatsapp: 'WhatsApp' };
+      $('[data-notify-status]').innerHTML = channels.length
+        ? `${ICON('check')}<span>Activos: <b>${channels.map((c) => names[c] || c).join(' y ')}</b>. Te aviso de cada reserva nueva, cambio y cancelación.</span>`
+        : `${ICON('info')}<span>Todavía no están activados. Sigue los pasos de abajo (se hace una sola vez).</span>`;
+      $('[data-notify-test]').disabled = !channels.length;
+    })
+    .catch(() => ($('[data-notify-status]').textContent = 'No se ha podido comprobar el estado de los avisos.'));
+  $('[data-notify-test]').addEventListener('click', async (e) => {
+    const r = await act(e.currentTarget, () => api('/api/admin/notify-test', { method: 'POST', body: {} })).catch(() => null);
+    if (!r) return;
+    const bad = Object.entries(r.results).filter(([, ok]) => !ok).map(([k]) => k);
+    toast(bad.length ? `No se ha podido enviar por: ${bad.join(', ')}. Revisa los secretos.` : '¡Aviso enviado! Mira tu móvil.', !!bad.length);
+  });
 
   const f = $('#settings-form');
   f.addEventListener('submit', async (e) => {

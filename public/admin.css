@@ -893,3 +893,47 @@ details.card[open] > summary {
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
 }
+
+.notify-card {
+  margin-top: 16px;
+}
+
+.notify-status {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.notify-status .icon {
+  margin-top: 2px;
+  color: var(--gold-ink);
+  flex: none;
+}
+
+.notify-help summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.notify-help ol {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--ink-2);
+}
+
+.notify-help code {
+  font-size: 0.875em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+
+.form .row {
+  align-items: start;
+}

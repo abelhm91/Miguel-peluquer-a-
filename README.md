@@ -60,6 +60,15 @@ DATABASE_FILE=data/demo.db ADMIN_PASSWORD=demo npm start
 
 La web arranca **sin horario**: hasta que Miguel lo pone, la reserva online aparece como «abrirá muy pronto» y se invita a escribirle por Instagram. Entrar en `/admin` → **Horario**, marcar los días y tramos y guardar. En **Ajustes** se añaden teléfono y WhatsApp, y en **Servicios** se revisan las duraciones (los valores iniciales son orientativos) y, si se quiere, los precios.
 
+## Avisos de reservas por Telegram o WhatsApp
+
+La web avisa a Miguel de cada reserva nueva, cambio de hora y cancelación. Se activa añadiendo **Secretos** en Cloudflare (Worker → Configuración → Variables y secretos) y se prueba desde el panel → Ajustes → «Enviar aviso de prueba».
+
+- **Telegram (recomendado):** `TELEGRAM_BOT_TOKEN` (lo da @BotFather con `/newbot`) y `TELEGRAM_CHAT_ID` (envía un mensaje a tu bot y míralo en `https://api.telegram.org/bot<TOKEN>/getUpdates`).
+- **WhatsApp con CallMeBot (gratis, no oficial):** `CALLMEBOT_PHONE` (+34…) y `CALLMEBOT_APIKEY` (te la envía CallMeBot al escribirle «I allow callmebot to send me messages»).
+
+Los pasos detallados están también en el propio panel. Un fallo al avisar nunca impide guardar la reserva.
+
 ## Pendiente de datos reales
 
 - Teléfono / WhatsApp, horario y precios: se rellenan desde el panel.

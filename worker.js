@@ -8,17 +8,18 @@ let api;
 let apiEnv;
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (!api || apiEnv !== env) {
       api = createApi({
         db: d1Adapter(env.DB),
         adminPassword: env.ADMIN_PASSWORD,
         sessionSecret: env.SESSION_SECRET,
         secureCookies: new URL(request.url).protocol === 'https:',
+        notifyEnv: env,
       });
       apiEnv = env;
     }
-    const res = await api(request);
+    const res = await api(request, ctx);
     return res ?? env.ASSETS.fetch(request);
   },
 };

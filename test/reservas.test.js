@@ -214,6 +214,27 @@ test('precio total guardado en la cita', async () => {
   assert.equal(r2.data.price, '', 'sin precio no se inventa');
 });
 
+test('avisos a Miguel por Telegram y WhatsApp', async () => {
+  const { nodeAdapter: _n, saveSettings: _s } = { nodeAdapter, saveSettings };
+  const db = await nodeAdapter(':memory:');
+  await saveSettings(db, { hours: HOURS, slotStep: 30 });
+  const sent = [];
+  const fakeFetch = async (u, o) => (sent.push([String(u), o?.body || '']), { ok: true });
+  const api = createApi({ db, adminPassword: 'x', now: () => NOW, notifyEnv: { TELEGRAM_BOT_TOKEN: 'T', TELEGRAM_CHAT_ID: '42', CALLMEBOT_PHONE: '+34600', CALLMEBOT_APIKEY: 'K' }, fetchImpl: fakeFetch });
+  const pending = [];
+  const ctx = { waitUntil: (p) => pending.push(p) };
+  const post = (path, body) => api(new Request(`http://local${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }), ctx);
+  const svc = (await (await api(new Request('http://local/api/info'), ctx)).json()).services[2];
+  const r = await (await post('/api/bookings', { serviceId: svc.id, date: MONDAY, time: '09:00', name: 'Ana', phone: '600112233' })).json();
+  await Promise.all(pending);
+  assert.equal(sent.length, 2);
+  assert.ok(sent[0][0].includes('api.telegram.org/botT/sendMessage') && JSON.parse(sent[0][1]).text.includes('Nueva cita'));
+  assert.ok(sent[1][0].includes('callmebot') && decodeURIComponent(sent[1][0]).includes('Ana'));
+  await post(`/api/bookings/${r.code}/cancel`, { token: r.token });
+  await Promise.all(pending);
+  assert.ok(JSON.parse(sent[2][1]).text.includes('Cita cancelada'));
+});
+
 test('hora de Madrid', () => {
   assert.deepEqual(nowInMadrid(new Date('2030-07-01T22:30:00Z')), { date: '2030-07-02', minutes: 30 });
 });
