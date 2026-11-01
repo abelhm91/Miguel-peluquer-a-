@@ -29,3 +29,11 @@ Producción: Cloudflare Worker `miguel-peluquer-a` + base de datos D1 `pentinats
 - Diseño: ver `DESIGN.md` (negro y dorado, títulos en Jost). Producto y tono: `PRODUCT.md`.
 - Los secretos (`ADMIN_PASSWORD`, `SESSION_SECRET`, `TELEGRAM_*`, `CALLMEBOT_*`) viven en Cloudflare como Secret, nunca en el repositorio.
 - Antes de terminar: `npm test` en verde.
+
+## Trabajo en equipo (Codex + Claude Code)
+
+- La rama `ccr-18341c75-w354or` es producción: Cloudflare la publica sola. Nadie hace commits directos en ella.
+- Cada agente trabaja en su propia rama (`codex/<tarea>` o `claude/<tarea>`) y abre un pull request hacia `ccr-18341c75-w354or`.
+- El reparto está en `TAREAS.md`. Toca solo los archivos de tu zona; si necesitas cambiar uno de la otra zona, hazlo en un PR pequeño y dilo en la descripción.
+- Al empezar una tarea, márcala `en curso` en `TAREAS.md`; al abrir el PR, `en revisión (PR #…)`.
+- Antes de abrir el PR: actualiza tu rama con la de producción y deja `npm test` en verde.
