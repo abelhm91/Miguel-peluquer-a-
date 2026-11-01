@@ -9,7 +9,7 @@ Estados: `pendiente` · `en curso` · `en revisión (PR #…)` · `hecha`
 
 | # | Tarea | Estado |
 |---|---|---|
-| C1 | SEO local: `robots.txt`, `sitemap.xml` y datos estructurados JSON-LD (`HairSalon`) en la portada | pendiente |
+| C1 | SEO local: `robots.txt`, `sitemap.xml` y datos estructurados JSON-LD (`HairSalon`) en la portada | en revisión (PR pendiente) |
 | C2 | Imagen para compartir en WhatsApp/redes (1200×630, negro y dorado) y metas `og:`/`twitter:` | pendiente |
 | C3 | Galería de trabajos preparada para fotos (huecos marcados como pendientes hasta que Miguel las pase) | pendiente |
 | C4 | Revisión de accesibilidad de la portada y del diálogo de reserva (teclado, foco, contraste) | pendiente |
