@@ -102,10 +102,10 @@ function showApp() {
 
 /* ---------- navegación ---------- */
 
-const ROUTES = { agenda: renderAgenda, proximas: renderUpcoming, horario: renderHours, servicios: renderServices, ajustes: renderSettings };
+const ROUTES = { agenda: renderAgenda, proximas: renderUpcoming, clientas: renderClients, horario: renderHours, servicios: renderServices, ajustes: renderSettings };
 
 function route() {
-  const tab = location.hash.slice(1) || 'agenda';
+  const tab = location.hash.slice(1).split('/')[0] || 'agenda';
   const fn = ROUTES[tab] || renderAgenda;
   $$('[data-tab]').forEach((a) => (a.getAttribute('data-tab') === tab ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   $('#setup-banner').hidden = hasHours() || tab === 'horario';
@@ -438,6 +438,120 @@ async function renderUpcoming() {
       renderUpcoming();
     })
   );
+}
+
+/* =========================================================
+   Clientas
+   ========================================================= */
+
+const visitsText = (n) => `${n} ${n === 1 ? 'visita' : 'visitas'}`;
+
+function clientLine(c) {
+  const bits = [c.visits ? visitsText(c.visits) : 'Aún no ha venido'];
+  if (c.nextDate) bits.push(`próxima: ${shortDate(c.nextDate)}`);
+  else if (c.lastVisit) bits.push(`última: ${shortDate(c.lastVisit)}`);
+  return `
+    <li><a class="client" href="#clientas/${encodeURIComponent(c.key)}">
+      <span class="client__name">${esc(c.name)}</span>
+      <span class="client__meta">${c.phone ? `${esc(prettyPhone(c.phone))} · ` : ''}${bits.join(' · ')}</span>
+      ${c.nextDate ? '<span class="tag tag--web">Tiene cita</span>' : ''}
+    </a></li>`;
+}
+
+async function renderClients() {
+  const key = decodeURIComponent(location.hash.split('/')[1] || '');
+  if (key) return renderClient(key);
+  const q = st.clientQuery || '';
+  view.innerHTML = `
+    <div class="view-head"><h1>Clientas</h1><span class="muted" data-client-count></span></div>
+    <div class="field client-search">
+      <label for="client-q" class="visually-hidden">Buscar clienta</label>
+      ${ICON('search')}
+      <input class="input" id="client-q" type="search" placeholder="Busca por nombre o teléfono" value="${esc(q)}" autocomplete="off">
+    </div>
+    <div data-client-list><div class="skeleton" style="height:200px"></div></div>`;
+  const input = $('#client-q');
+  let timer;
+  let seq = 0;
+  const load = async () => {
+    const mine = ++seq;
+    st.clientQuery = input.value.trim();
+    let data;
+    try {
+      data = await api(`/api/admin/clients?q=${encodeURIComponent(st.clientQuery)}`);
+    } catch (e) {
+      if (e.status === 401) return showLogin();
+      $('[data-client-list]').innerHTML = `<div class="alert">${esc(e.message)}</div>`;
+      return;
+    }
+    if (mine !== seq) return;
+    $('[data-client-count]').textContent = st.clientQuery ? `${data.total} ${data.total === 1 ? 'resultado' : 'resultados'}` : `${data.total} en total`;
+    $('[data-client-list]').innerHTML = data.clients.length
+      ? `<ul class="clients">${data.clients.map(clientLine).join('')}</ul>${data.total > data.clients.length ? `<p class="muted small">Se muestran ${data.clients.length}. Escribe para afinar la búsqueda.</p>` : ''}`
+      : `<div class="empty">${st.clientQuery ? 'No encuentro a nadie con ese nombre o teléfono.' : 'Aquí aparecerán tus clientas cuando tengas citas.'}</div>`;
+  };
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(load, 200);
+  });
+  load();
+}
+
+async function renderClient(key) {
+  view.innerHTML = `<div class="skeleton" style="height:240px"></div>`;
+  let data;
+  try {
+    data = await api(`/api/admin/clients/${encodeURIComponent(key)}`);
+  } catch (e) {
+    if (e.status === 401) return showLogin();
+    view.innerHTML = `<a class="back-link" href="#clientas">${ICON('back')}Clientas</a><div class="alert">${esc(e.message)}</div>`;
+    return;
+  }
+  const { client: c, bookings } = data;
+  const next = bookings.filter((b) => b.status === 'confirmed' && b.date >= today()).reverse();
+  const past = bookings.filter((b) => !(b.status === 'confirmed' && b.date >= today()));
+  const first = c.name.split(' ')[0];
+  view.innerHTML = `
+    <a class="back-link" href="#clientas">${ICON('back')}Clientas</a>
+    <div class="view-head"><h1>${esc(c.name)}</h1></div>
+    <div class="client-card card">
+      ${
+        c.phone
+          ? `<div class="appt__links">
+        <a href="${phoneHref(c.phone)}">${ICON('phone')}${esc(prettyPhone(c.phone))}</a>
+        <a href="${whatsappHref(c.phone, `Hola ${first}, soy Miguel de la Cruz.`)}" target="_blank" rel="noopener">${ICON('chat')}WhatsApp</a>
+      </div>`
+          : '<span class="muted">Sin teléfono</span>'
+      }
+      ${c.email ? `<span class="muted small">${esc(c.email)}</span>` : ''}
+      <dl class="client-stats">
+        <div><dt>Visitas</dt><dd>${c.visits}</dd></div>
+        <div><dt>Gastado</dt><dd>${c.spent ? esc(euros(String(c.spent))) : '—'}</dd></div>
+        <div><dt>Última visita</dt><dd>${c.lastVisit ? esc(shortDate(c.lastVisit)) : '—'}</dd></div>
+        <div><dt>Canceladas</dt><dd>${c.cancelled}</dd></div>
+      </dl>
+    </div>
+    ${next.length ? `<section class="up-day"><h2>Próximas citas</h2><ul class="timeline">${next.map(historyItem).join('')}</ul></section>` : ''}
+    <section class="up-day"><h2>Historial</h2>${past.length ? `<ul class="timeline">${past.map(historyItem).join('')}</ul>` : '<div class="empty">Todavía no tiene citas pasadas.</div>'}</section>`;
+  $$('[data-cancel]', view).forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm(`¿Cancelar la cita de ${b.dataset.name}?`)) return;
+      await act(b, () => api(`/api/admin/bookings/${b.dataset.cancel}/cancel`, { method: 'POST', body: {} }), 'Cita cancelada');
+      renderClient(key);
+    })
+  );
+  $$('[data-restore]', view).forEach((b) =>
+    b.addEventListener('click', async () => {
+      await act(b, () => api(`/api/admin/bookings/${b.dataset.restore}/restore`, { method: 'POST', body: {} }), 'Cita recuperada');
+      renderClient(key);
+    })
+  );
+}
+
+/** Cita en la ficha: la fecha delante, sin repetir teléfono ni nombre. */
+function historyItem(b) {
+  const html = apptHtml({ ...b, phone: '', email: '' });
+  return html.replace('<div class="appt__time">', `<div class="appt__time"><b class="appt__date">${esc(shortDate(b.date))}</b>`);
 }
 
 /* =========================================================

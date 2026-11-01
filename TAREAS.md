@@ -18,8 +18,8 @@ Estados: `pendiente` · `en curso` · `en revisión (PR #…)` · `hecha`
 
 | # | Tarea | Estado |
 |---|---|---|
-| A1 | Resumen diario a Miguel por Telegram con las citas de mañana (Cron Trigger de Cloudflare) | en revisión |
-| A2 | Ficha de clientas en el panel: buscar por nombre o teléfono y ver su historial de citas | pendiente |
+| A1 | Resumen diario a Miguel por Telegram con las citas de mañana (Cron Trigger de Cloudflare) | hecha |
+| A2 | Ficha de clientas en el panel: buscar por nombre o teléfono y ver su historial de citas | en revisión |
 | A3 | Exportar citas a CSV desde el panel | pendiente |
 | A4 | Borrado automático de citas con más de un año (lo promete la política de privacidad) | pendiente |
 
