@@ -707,6 +707,11 @@ function renderSettings() {
         <p class="muted small">Es un servicio gratuito de terceros: puede tardar o fallar alguna vez. Telegram es más fiable.</p>
       </details>
       <div><button type="button" class="btn btn--ghost" data-notify-test disabled>Enviar aviso de prueba</button></div>
+      <hr class="notify-sep">
+      <h3 style="font-size:1rem">Resumen de mañana</h3>
+      <label class="check"><input type="checkbox" data-daily ${s.dailySummary === false ? '' : 'checked'}> Mandarme cada tarde las citas del día siguiente</label>
+      <p class="muted small">Llega sobre las 18:00 (las 19:00 en horario de verano), solo los días antes de que tengas citas.</p>
+      <div><button type="button" class="btn btn--ghost" data-summary-test disabled>Enviarme el resumen de mañana ahora</button></div>
     </section>
     <form hidden>
     </form>`;
@@ -719,6 +724,7 @@ function renderSettings() {
         ? `${ICON('check')}<span>Activos: <b>${channels.map((c) => names[c] || c).join(' y ')}</b>. Te aviso de cada reserva nueva, cambio y cancelación.</span>`
         : `${ICON('info')}<span>Todavía no están activados. Sigue los pasos de abajo (se hace una sola vez).</span>`;
       $('[data-notify-test]').disabled = !channels.length;
+      $('[data-summary-test]').disabled = !channels.length;
     })
     .catch(() => ($('[data-notify-status]').textContent = 'No se ha podido comprobar el estado de los avisos.'));
   $('[data-notify-test]').addEventListener('click', async (e) => {
@@ -726,6 +732,23 @@ function renderSettings() {
     if (!r) return;
     const bad = Object.entries(r.results).filter(([, ok]) => !ok).map(([k]) => k);
     toast(bad.length ? `No se ha podido enviar por: ${bad.join(', ')}. Revisa los secretos.` : '¡Aviso enviado! Mira tu móvil.', !!bad.length);
+  });
+
+  $('[data-daily]').addEventListener('change', async (e) => {
+    const on = e.currentTarget.checked;
+    try {
+      await api('/api/admin/settings', { method: 'PUT', body: { dailySummary: on } });
+      toast(on ? 'Te mandaré el resumen cada tarde.' : 'Resumen diario desactivado.');
+    } catch {
+      e.currentTarget.checked = !on;
+      toast('No se ha podido guardar. Inténtalo otra vez.', true);
+    }
+  });
+  $('[data-summary-test]').addEventListener('click', async (e) => {
+    const r = await act(e.currentTarget, () => api('/api/admin/summary-test', { method: 'POST', body: {} })).catch(() => null);
+    if (!r) return;
+    const bad = Object.entries(r.results || {}).filter(([, ok]) => !ok).map(([k]) => k);
+    toast(bad.length ? `No se ha podido enviar por: ${bad.join(', ')}.` : '¡Resumen enviado! Mira tu móvil.', !!bad.length);
   });
 
   const f = $('#settings-form');

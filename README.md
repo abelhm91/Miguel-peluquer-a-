@@ -69,6 +69,8 @@ La web avisa a Miguel de cada reserva nueva, cambio de hora y cancelación. Se a
 
 Los pasos detallados están también en el propio panel. Un fallo al avisar nunca impide guardar la reserva.
 
+**Resumen diario:** cada tarde a las 17:00 UTC (18:00 en invierno, 19:00 en verano) el Cron Trigger de `wrangler.jsonc` manda a Miguel las citas del día siguiente por los mismos canales. Solo se envía si mañana hay citas. Se activa o desactiva en el panel → Ajustes → «Resumen de mañana», y desde ahí se puede pedir al momento.
+
 ## Pendiente de datos reales
 
 - Teléfono / WhatsApp, horario y precios: se rellenan desde el panel.

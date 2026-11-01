@@ -5,6 +5,7 @@ import { getSettings, saveSettings } from './db.js';
 import { daySummary, freeSlots, hasAnyHours, busyRanges, openIntervals, effectiveMaxDays, nextFallasEnd } from './availability.js';
 import { addDays, isValidDate, nowInMadrid, toHHMM, toMinutes } from './time.js';
 import { channels, messageFor, notify } from './notify.js';
+import { sendDailySummary } from './summary.js';
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -532,6 +533,13 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       return json(200, { results: Object.fromEntries(results) });
     }
 
+    if (m === 'POST' && path === '/api/admin/summary-test') {
+      await readJson(req);
+      if (!channels(notifyEnv).length) throw bad('Aún no hay ningún aviso configurado.');
+      const r = await sendDailySummary({ db, env: notifyEnv, now: now(), fetchImpl: fetchImpl ?? fetch, siteUrl: url.origin, force: true });
+      return json(200, r);
+    }
+
     if (m === 'GET' && path === '/api/admin/range') {
       // Resumen por día (para la tira de la semana): citas confirmadas y euros previstos.
       const from = url.searchParams.get('from');
@@ -599,6 +607,7 @@ export function createApi({ db, adminPassword, sessionSecret, secureCookies = fa
       for (const k of ['email', 'instagram', 'address', 'city', 'legalName']) if (k in body) patch[k] = str(body[k], 120);
       if ('nif' in body) patch.nif = str(body.nif, 20).toUpperCase();
       if ('bookingNote' in body) patch.bookingNote = str(body.bookingNote, 400);
+      if ('dailySummary' in body) patch.dailySummary = Boolean(body.dailySummary);
       const ints = { slotStep: [5, 120], minNoticeMinutes: [0, 60 * 24 * 7], maxDaysAhead: [1, 400] };
       for (const [k, [lo, hi]] of Object.entries(ints)) {
         if (k in body) {
