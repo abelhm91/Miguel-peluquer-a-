@@ -25,7 +25,7 @@ async function setup() {
     );
     return { status: res.status, headers: res.headers, data: await res.json().catch(() => null) };
   };
-  return { db, call };
+  return { db, call, api };
 }
 
 test('los huecos respetan horario, duración y citas', async () => {
@@ -297,4 +297,30 @@ test('resumen diario de las citas de mañana', async () => {
   await saveSettings(db, { dailySummary: false });
   assert.equal((await sendDailySummary({ db, env, now: eve, fetchImpl: fakeFetch })).reason, 'desactivado');
   assert.equal((await sendDailySummary({ db, env: {}, now: eve, fetchImpl: fakeFetch })).reason, 'sin-canales');
+});
+
+test('exportar CSV y borrar citas de hace más de un año', async () => {
+  const { db, call, api } = await setup();
+  const login = await call('/api/admin/login', { method: 'POST', body: { password: 'secreto' } });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const svcs = (await call('/api/info')).data.services;
+  await call('/api/bookings', { method: 'POST', body: { serviceId: svcs[0].id, date: MONDAY, time: '09:00', name: 'Ana; "la del 3º"', phone: '600000001', notes: '=HYPERLINK("x")', extra: [{ serviceId: svcs[1].id, name: 'Lucía' }] } });
+  await db.run("INSERT INTO bookings (code, token, service_name, date, start_min, end_min, name, phone) VALUES ('VIEJA1','t','Peinado',?,600,660,'=SUMA(1)','1')", addDays(NOW.date, -400));
+  const r = await api(new Request('http://local/api/admin/export.csv', { headers: { cookie } }));
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('content-type'), /text\/csv/);
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  assert.deepEqual([...bytes.slice(0, 3)], [0xef, 0xbb, 0xbf], 'BOM para que Excel lea los acentos');
+  const csv = new TextDecoder().decode(bytes);
+  const lines = csv.trim().split('\r\n');
+  assert.ok(lines[0].replace(/^\uFEFF/, '').startsWith('Fecha;Hora'));
+  assert.equal(lines.length, 4, 'cabecera + vieja + 2 personas del grupo');
+  assert.ok(csv.includes('"Ana; ""la del 3º"""'), 'escapa ; y comillas');
+  assert.ok(csv.includes(";'=SUMA(1);"), 'un nombre que empieza por = no se abre como fórmula');
+  assert.ok(lines.some((l) => l.includes(';Lucía;')));
+  const { purgeOldBookings } = await import('../server/maintenance.js');
+  assert.equal(await purgeOldBookings(db, NOW.date), 1);
+  assert.equal((await db.get("SELECT COUNT(*) AS n FROM bookings WHERE code = 'VIEJA1'")).n, 0);
+  assert.equal((await db.get('SELECT COUNT(*) AS n FROM bookings')).n, 1, 'las recientes se quedan');
+  assert.equal((await call('/api/admin/export.csv')).status, 401);
 });

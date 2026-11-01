@@ -4,6 +4,8 @@
 import { d1Adapter } from './server/db.js';
 import { createApi } from './server/app.js';
 import { sendDailySummary } from './server/summary.js';
+import { purgeOldBookings } from './server/maintenance.js';
+import { nowInMadrid } from './server/time.js';
 
 let api;
 let apiEnv;
@@ -38,6 +40,12 @@ export default {
 
   // Cron Trigger (wrangler.jsonc → triggers.crons): resumen de las citas de mañana.
   async scheduled(controller, env, ctx) {
+    // Borra las citas de hace más de un año (lo promete la política de privacidad).
+    ctx.waitUntil(
+      purgeOldBookings(d1Adapter(env.DB), nowInMadrid().date)
+        .then((n) => console.log('citas antiguas borradas', n))
+        .catch((e) => console.error('limpieza', e))
+    );
     ctx.waitUntil(
       sendDailySummary({ db: d1Adapter(env.DB), env, siteUrl: env.SITE_URL || 'https://miguel-peluquer-a.abelacheeme.workers.dev' })
         .then((r) => console.log('resumen diario', JSON.stringify(r)))

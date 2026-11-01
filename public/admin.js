@@ -414,6 +414,7 @@ async function renderUpcoming() {
   }
   view.innerHTML = `
     <div class="view-head"><h1>Próximas citas</h1><span class="muted">${data.bookings.length} ${data.bookings.length === 1 ? 'cita confirmada' : 'citas confirmadas'} desde hoy</span></div>
+    <p class="export-row"><a class="btn btn--ghost btn--small" href="/api/admin/export.csv" download>${ICON('download')}Descargar todas las citas (Excel)</a><span class="muted small">Las citas de hace más de un año se borran solas.</span></p>
     ${
       byDay.size
         ? [...byDay.entries()]
