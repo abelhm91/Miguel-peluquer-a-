@@ -4,6 +4,7 @@ import { nodeAdapter, saveSettings } from '../server/db.js';
 import { createApi } from '../server/app.js';
 import { freeSlots, daySummary, effectiveMaxDays } from '../server/availability.js';
 import { addDays, nowInMadrid } from '../server/time.js';
+import { sendDailySummary } from '../server/summary.js';
 
 // Lunes fijo para que los tests no dependan del día en que se ejecutan.
 const MONDAY = '2030-03-04';
@@ -273,4 +274,27 @@ test('fichas de clientas: agrupar por teléfono, buscar e historial', async () =
   assert.equal(det.data.bookings.length, 3);
   assert.equal((await call('/api/admin/clients/nadie', { cookie })).status, 404);
   assert.equal((await call('/api/admin/clients')).status, 401, 'solo con sesión');
+});
+
+test('resumen diario de las citas de mañana', async () => {
+  const { db, call } = await setup();
+  const env = { TELEGRAM_BOT_TOKEN: 'T', TELEGRAM_CHAT_ID: '42' };
+  const sent = [];
+  const fakeFetch = async (u, o) => (sent.push(JSON.parse(o.body).text), { ok: true });
+  const eve = { date: addDays(MONDAY, -1), minutes: 1140 };
+  // Sin citas mañana: no se envía nada (salvo si se fuerza desde el panel).
+  assert.equal((await sendDailySummary({ db, env, now: eve, fetchImpl: fakeFetch })).reason, 'sin-citas');
+  const svcs = (await call('/api/info')).data.services;
+  await call('/api/bookings', { method: 'POST', body: { serviceId: svcs[0].id, date: MONDAY, time: '16:00', name: 'Bea', phone: '600000002' } });
+  await call('/api/bookings', { method: 'POST', body: { serviceId: svcs[0].id, date: MONDAY, time: '09:00', name: 'Ana', phone: '600000001', extra: [{ serviceId: svcs[1].id, name: 'Lucía' }] } });
+  const r = await sendDailySummary({ db, env, now: eve, fetchImpl: fakeFetch, siteUrl: 'https://x.dev' });
+  assert.equal(r.sent, true);
+  const text = sent.at(-1);
+  assert.match(text, /Mañana lunes 4 de marzo: 3 personas/);
+  assert.ok(text.indexOf('09:00 Ana') < text.indexOf('Lucía') && text.indexOf('Lucía') < text.indexOf('16:00 Bea'), 'en orden');
+  assert.ok(text.includes('Tel. 600000001') && text.includes('https://x.dev/admin'));
+  // Desactivado en Ajustes: no se envía.
+  await saveSettings(db, { dailySummary: false });
+  assert.equal((await sendDailySummary({ db, env, now: eve, fetchImpl: fakeFetch })).reason, 'desactivado');
+  assert.equal((await sendDailySummary({ db, env: {}, now: eve, fetchImpl: fakeFetch })).reason, 'sin-canales');
 });

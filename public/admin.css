@@ -1046,3 +1046,9 @@ details.card[open] > summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.notify-sep {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 8px 0 0;
+}
