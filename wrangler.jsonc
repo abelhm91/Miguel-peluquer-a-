@@ -21,6 +21,15 @@
       "migrations_dir": "migrations"
     }
   ],
+  "previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "pentinats-reservas-preview",
+        "database_id": "e4ab82e1-51d4-443d-b881-e9c27342537d"
+      }
+    ]
+  },
   // Resumen diario a Miguel con las citas de mañana: 17:00 UTC = 18:00 en invierno, 19:00 en verano.
   "triggers": { "crons": ["0 17 * * *"] },
   "observability": { "enabled": true }
