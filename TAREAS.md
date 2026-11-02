@@ -11,8 +11,8 @@ Estados: `pendiente` · `en curso` · `en revisión (PR #…)` · `hecha`
 |---|---|---|
 | C1 | SEO local: `robots.txt`, `sitemap.xml` y datos estructurados JSON-LD (`HairSalon`) en la portada | hecha |
 | C2 | Imagen para compartir en WhatsApp/redes (1200×630, negro y dorado) y metas `og:`/`twitter:` | hecha |
-| C3 | Galería de trabajos preparada para fotos (huecos marcados como pendientes hasta que Miguel las pase) | en revisión (PR #9) |
-| C4 | Revisión de accesibilidad de la portada y del diálogo de reserva (teclado, foco, contraste) | pendiente |
+| C3 | Galería de trabajos preparada para fotos (huecos marcados como pendientes hasta que Miguel las pase) | hecha |
+| C4 | Revisión de accesibilidad de la portada y del diálogo de reserva (teclado, foco, contraste) | en curso |
 
 ## Claude Code: servidor y panel (`server/`, `worker.js`, `migrations/`, `public/admin.*`, `test/`)
 

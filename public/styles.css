@@ -108,9 +108,15 @@ textarea {
 }
 
 :focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--gold-ink);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+.topbar :focus-visible,
+.season--night :focus-visible,
+.footer :focus-visible {
+  outline-color: var(--gold-bright);
 }
 
 [hidden] {
@@ -347,9 +353,16 @@ textarea {
 .input:focus,
 .select:focus,
 .textarea:focus {
-  outline: none;
   border-color: var(--ink);
   box-shadow: 0 0 0 3px rgb(180 139 60 / 0.28);
+}
+
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--gold-ink);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .input[aria-invalid='true'] {

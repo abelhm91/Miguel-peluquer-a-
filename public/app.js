@@ -438,11 +438,11 @@ function openBooking(serviceId = null, { date = null, fallas = false } = {}) {
   }
   if (!dlg.open) {
     dlg.showModal();
-    content.focus({ preventScroll: true });
     document.documentElement.style.overflow = 'hidden';
     if (location.hash !== '#reservar') history.pushState({ booking: true }, '', '#reservar');
   }
   render();
+  focusBookingStep();
   if (state.step === 'time' && !state.days.length && settings().bookingOpen) {
     const prefer = state.pendingPrefer;
     state.pendingPrefer = null;
@@ -500,9 +500,14 @@ function go(step) {
   state.step = step;
   state.error = '';
   render();
-  content.focus({ preventScroll: true });
+  focusBookingStep();
   $('.booking__body').scrollTop = 0;
   if (step === 'time' && !state.days.length) loadDays({ keep: true });
+}
+
+function focusBookingStep() {
+  const name = $('#f-name');
+  (state.step === 'details' && name ? name : $('#booking-title')).focus({ preventScroll: true });
 }
 
 const TITLES = {
@@ -978,13 +983,18 @@ function bindStep(step) {
     form.addEventListener('input', (e) => {
       if (e.target.name in state.form) state.form[e.target.name] = e.target.value;
       if (e.target.dataset.other) state.extra[Number(e.target.dataset.other)].name = e.target.value;
-      e.target.removeAttribute('aria-invalid');
+      const field = e.target.closest('.field');
+      const error = field?.querySelector('.error');
+      if (error) {
+        e.target.removeAttribute('aria-invalid');
+        e.target.removeAttribute('aria-describedby');
+        error.remove();
+      }
     });
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       submit();
     });
-    if (!state.form.name) $('#f-name').focus();
   }
   if (step === 'done') {
     $('[data-ics]', content).addEventListener('click', () => {
