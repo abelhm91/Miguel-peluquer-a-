@@ -376,8 +376,12 @@
 }
 
 .map__load:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--gold-ink);
   outline-offset: -4px;
+}
+
+.salon .map__load:focus-visible {
+  outline-color: var(--gold-bright);
 }
 
 .map iframe {
@@ -669,7 +673,6 @@
 }
 
 .booking__content {
-  outline: none;
   min-width: 0;
 }
 
@@ -1002,7 +1005,7 @@
 }
 
 .day[disabled] .day__num {
-  color: #a39b9d;
+  color: var(--muted);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
