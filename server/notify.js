@@ -45,15 +45,23 @@ export function messageFor(kind, b = {}, { siteUrl = '' } = {}) {
   return lines.join('\n');
 }
 
-/** Envía el aviso por los canales configurados. Devuelve qué canales funcionaron. */
-export async function notify(env, text, fetchImpl = fetch) {
+/**
+ * Envía el aviso por los canales configurados. Devuelve qué canales funcionaron.
+ * `buttons` ([{ text, url }]) solo se muestran en Telegram, uno por fila.
+ */
+export async function notify(env, text, fetchImpl = fetch, { buttons = [] } = {}) {
   const jobs = [];
   if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
     jobs.push(
       fetchImpl(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text, disable_web_page_preview: true }),
+        body: JSON.stringify({
+          chat_id: env.TELEGRAM_CHAT_ID,
+          text,
+          disable_web_page_preview: true,
+          ...(buttons.length ? { reply_markup: { inline_keyboard: buttons.map((b) => [b]) } } : {}),
+        }),
       }).then((r) => ['telegram', r.ok])
     );
   }

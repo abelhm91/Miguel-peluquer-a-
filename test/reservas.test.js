@@ -324,3 +324,24 @@ test('exportar CSV y borrar citas de hace más de un año', async () => {
   assert.equal((await db.get('SELECT COUNT(*) AS n FROM bookings')).n, 1, 'las recientes se quedan');
   assert.equal((await call('/api/admin/export.csv')).status, 401);
 });
+
+test('recordatorio por WhatsApp: texto, enlace y botones del resumen', async () => {
+  const { reminderText, waLink } = await import('../public/reminder.js');
+  const b = { name: 'Ana García', date: MONDAY, start: '09:30', code: 'ABC123', token: 't k' };
+  const text = reminderText(b, { today: addDays(MONDAY, -1), siteUrl: 'https://x.dev/', address: 'Calle del Cid, 12, Paterna' });
+  assert.match(text, /^Hola Ana, soy Miguel de la Cruz\. Te recuerdo tu cita mañana lunes 4 a las 9:30 en Calle del Cid, 12, Paterna\./);
+  assert.ok(text.includes('https://x.dev/cita?c=ABC123&t=t%20k'));
+  assert.match(reminderText(b, { today: '2030-01-01' }), /cita el lunes 4 a las 9:30/);
+  assert.equal(waLink('600 11 22 33', 'hola'), 'https://wa.me/34600112233?text=hola');
+
+  const { db, call } = await setup();
+  const svcs = (await call('/api/info')).data.services;
+  await call('/api/bookings', { method: 'POST', body: { serviceId: svcs[0].id, date: MONDAY, time: '09:00', name: 'Bea López', phone: '600000002' } });
+  const bodies = [];
+  const fakeFetch = async (u, o) => (bodies.push(JSON.parse(o.body)), { ok: true });
+  await sendDailySummary({ db, env: { TELEGRAM_BOT_TOKEN: 'T', TELEGRAM_CHAT_ID: '42' }, now: { date: addDays(MONDAY, -1), minutes: 1140 }, fetchImpl: fakeFetch, siteUrl: 'https://x.dev' });
+  const [btn] = bodies[0].reply_markup.inline_keyboard.flat();
+  assert.equal(btn.text, '📲 Recordar a Bea (09:00)');
+  assert.ok(btn.url.startsWith('https://wa.me/34600000002?text='));
+  assert.match(decodeURIComponent(btn.url), /Hola Bea.*mañana lunes 4 a las 9:00 en Calle del Cid, 12, bajo, Paterna.*\/cita\?c=/s);
+});

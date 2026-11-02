@@ -157,6 +157,7 @@ function bookingRow(r, { full = false } = {}) {
       source: r.source,
       createdAt: r.created_at,
       cancelledAt: r.cancelled_at,
+      token: r.token, // solo en el panel: para el enlace del recordatorio
     });
   }
   return b;

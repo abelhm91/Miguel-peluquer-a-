@@ -71,6 +71,8 @@ Los pasos detallados están también en el propio panel. Un fallo al avisar nunc
 
 **Resumen diario:** cada tarde a las 17:00 UTC (18:00 en invierno, 19:00 en verano) el Cron Trigger de `wrangler.jsonc` manda a Miguel las citas del día siguiente por los mismos canales. Solo se envía si mañana hay citas. Se activa o desactiva en el panel → Ajustes → «Resumen de mañana», y desde ahí se puede pedir al momento.
 
+**Recordatorios a las clientas:** en Telegram, el resumen trae un botón por cita («📲 Recordar a Ana») que abre WhatsApp con el recordatorio ya escrito, incluido el enlace para cambiar o cancelar la cita; Miguel solo pulsa Enviar. En el panel, cada cita futura tiene también «Recordar cita». El texto está en `public/reminder.js`.
+
 ## Pendiente de datos reales
 
 - Teléfono / WhatsApp, horario y precios: se rellenan desde el panel.
