@@ -22,7 +22,8 @@ Estados: `pendiente` · `en curso` · `en revisión (PR #…)` · `hecha`
 | A2 | Ficha de clientas en el panel: buscar por nombre o teléfono y ver su historial de citas | hecha |
 | A3 | Exportar citas a CSV desde el panel | hecha |
 | A4 | Borrado automático de citas con más de un año (lo promete la política de privacidad) | hecha |
-| A5 | Recordatorio por WhatsApp a la clienta el día antes (botones en el resumen de Telegram y en el panel) | en revisión |
+| A5 | Recordatorio por WhatsApp a la clienta el día antes (botones en el resumen de Telegram y en el panel) | hecha |
+| A6 | Pasar las skills de Emil Kowalski a toda la web (movimiento, tacto en móvil, datos extremos). Toca CSS de la zona de Codex: avisado | en revisión |
 
 ## Pendiente de Miguel (nadie lo programa)
 

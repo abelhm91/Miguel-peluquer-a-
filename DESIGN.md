@@ -52,3 +52,17 @@ Tipografía: **Jost** (se cargan 400–600; los títulos usan 600), sans-serif g
 
 Modo Operate: precisión antes que expresión, con la marca en los detalles. Barra superior negra con el sello y «PENTINATS» en dorado, pestañas con la activa en oro, enlace «Ver mi web». Agenda con la tira de la semana (citas por día), resumen del día (citas, personas, euros previstos, horario), huecos libres entre citas con «Apuntar cita» y tarjetas de cita con personas, horas y precio. Servicios en lista compacta (nombre, categoría, duración, precio) que se despliega para editar, con flechas para ordenar. Horario con «Copiar de lunes a viernes».
 
+
+
+## Movimiento y tacto (skills de Emil Kowalski)
+
+Aplicadas `emil-design-eng`, `mobile-native`, `review-animations` y `break-ui` de [emilkowalski/skills](https://github.com/emilkowalski/skills).
+
+- **Curvas** (en `styles.css`): `--ease-out: cubic-bezier(0.23, 1, 0.32, 1)` para entrar/salir y responder; `--ease-in-out` para moverse en pantalla; `--ease-drawer` para la hoja de reserva. Nunca `ease-in`, nunca `transition: all`.
+- **Duraciones**: pulsar 120–160 ms; UI por debajo de 300 ms; la hoja de reserva 320 ms. Solo lo que se ve una vez (sello de la portada, billete de cita confirmada) puede durar más.
+- **Al pulsar**, todo se hunde un poco: `transform: scale(0.97)` en `:active` (botones, días, horas, chips, servicios, días de Fallas, tira de la semana, fichas).
+- **Hover solo con ratón**: todos los `:hover` van dentro de `@media (hover: hover) and (pointer: fine)`, para que en el móvil no se queden marcados tras tocar.
+- **Móvil**: sin destello gris al tocar, `touch-action: manipulation` (sin retraso de 300 ms), sin seleccionar el texto de los botones al mantener pulsado, `theme-color` en todas las páginas y la hoja de reserva con `overscroll-behavior: contain`.
+- **Escalonado**: los días de Fallas entran escalonados (40 ms) solo la primera vez; al cambiar Adulta/Infantil se ven al momento.
+- **Datos extremos**: nombres y correos muy largos parten línea (`overflow-wrap: anywhere`) sin ensanchar las tarjetas; comprobado a 320 px.
+- **Movimiento reducido**: con `prefers-reduced-motion` se quitan las animaciones de entrada.

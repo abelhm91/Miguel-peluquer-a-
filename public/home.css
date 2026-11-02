@@ -215,11 +215,13 @@
   color: var(--ivory-2);
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+  transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out), transform 120ms var(--ease-out);
 }
 
-.seg button:hover {
-  color: var(--ivory);
+@media (hover: hover) and (pointer: fine) {
+  .seg button:hover {
+    color: var(--ivory);
+  }
 }
 
 .seg button[aria-pressed='true'] {
@@ -251,10 +253,12 @@
   transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), transform 160ms var(--ease-out);
 }
 
-.fday:hover:not([disabled]) {
-  background: rgb(212 176 106 / 0.12);
-  border-color: var(--gold-bright);
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .fday:hover:not([disabled]) {
+    background: rgb(212 176 106 / 0.12);
+    border-color: var(--gold-bright);
+    transform: translateY(-2px);
+  }
 }
 
 .fday[disabled] {
@@ -335,14 +339,15 @@
     animation-delay: 120ms;
   }
 
-  .fallas__days li {
-    animation: fade-up 600ms var(--ease-out) both;
+  /* Solo en la primera carga (data-enter); 40 ms entre días, como pide Emil (30–80 ms). */
+  .fallas__days[data-enter] li {
+    animation: fade-up 400ms var(--ease-out) both;
   }
 
-  .fallas__days li:nth-child(2) { animation-delay: 60ms; }
-  .fallas__days li:nth-child(3) { animation-delay: 120ms; }
-  .fallas__days li:nth-child(4) { animation-delay: 180ms; }
-  .fallas__days li:nth-child(5) { animation-delay: 240ms; }
+  .fallas__days[data-enter] li:nth-child(2) { animation-delay: 40ms; }
+  .fallas__days[data-enter] li:nth-child(3) { animation-delay: 80ms; }
+  .fallas__days[data-enter] li:nth-child(4) { animation-delay: 120ms; }
+  .fallas__days[data-enter] li:nth-child(5) { animation-delay: 160ms; }
 }
 
 /* ---------- El salón ---------- */
@@ -429,9 +434,11 @@
   color: var(--ivory);
 }
 
-.salon .insta-card:hover {
-  border-color: var(--gold-bright);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .salon .insta-card:hover {
+    border-color: var(--gold-bright);
+    box-shadow: none;
+  }
 }
 
 .salon .insta-card > span span {
@@ -528,8 +535,10 @@
   color: var(--gold-bright);
 }
 
-.fallas__insta:hover {
-  color: var(--gold-bright);
+@media (hover: hover) and (pointer: fine) {
+  .fallas__insta:hover {
+    color: var(--gold-bright);
+  }
 }
 
 @media (max-width: 720px) {
@@ -694,8 +703,10 @@
   text-underline-offset: 0.2em;
 }
 
-.fday--full:hover {
-  border-color: var(--gold-bright);
+@media (hover: hover) and (pointer: fine) {
+  .fday--full:hover {
+    border-color: var(--gold-bright);
+  }
 }
 
 /* "Para 1 persona · Añadir otra persona" no se parte a trozos */
@@ -750,10 +761,16 @@
   color: var(--ivory);
 }
 
-.pick-group--night .pick:hover,
 .pick-group--night .pick[aria-pressed='true'] {
   border-color: var(--gold-bright);
   box-shadow: inset 0 0 0 1px var(--gold-bright);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pick-group--night .pick:hover {
+    border-color: var(--gold-bright);
+    box-shadow: inset 0 0 0 1px var(--gold-bright);
+  }
 }
 
 .pick-group--night .pick__meta {
