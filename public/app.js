@@ -247,6 +247,9 @@ async function renderFallas() {
   if (cap) cap.hidden = false;
   try {
     const { days } = await api(`/api/days?service=${state.fallasSvc}&from=${plantà}&n=5`);
+    // La entrada escalonada solo la primera vez: al cambiar Adulta/Infantil se ve al momento.
+    daysEl.toggleAttribute('data-enter', !state.fallasShown);
+    state.fallasShown = true;
     daysEl.innerHTML = days
       .map((d) => {
         const n = Number(d.date.slice(8));

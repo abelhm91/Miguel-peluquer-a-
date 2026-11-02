@@ -106,8 +106,10 @@ body {
   color: var(--ink-2);
 }
 
-.tabs a:hover {
-  background: var(--surface);
+@media (hover: hover) and (pointer: fine) {
+  .tabs a:hover {
+    background: var(--surface);
+  }
 }
 
 .tabs a[aria-current='page'] {
@@ -263,8 +265,10 @@ body {
 
 .appt__who {
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* un correo largo no ensancha la tarjeta */
   gap: 2px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .appt__who strong {
@@ -287,8 +291,10 @@ body {
   text-decoration: none;
 }
 
-.appt__links a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .appt__links a:hover {
+    text-decoration: underline;
+  }
 }
 
 .appt__links .icon {
@@ -587,9 +593,11 @@ details.card[open] > summary {
   color: var(--ivory-2);
 }
 
-.appbar .tabs a:hover {
-  background: var(--night-2);
-  color: var(--ivory);
+@media (hover: hover) and (pointer: fine) {
+  .appbar .tabs a:hover {
+    background: var(--night-2);
+    color: var(--ivory);
+  }
 }
 
 .appbar .tabs a[aria-current='page'] {
@@ -601,8 +609,10 @@ details.card[open] > summary {
   color: var(--ivory);
 }
 
-.appbar .icon-btn:hover {
-  background: var(--night-2);
+@media (hover: hover) and (pointer: fine) {
+  .appbar .icon-btn:hover {
+    background: var(--night-2);
+  }
 }
 
 .appbar__web {
@@ -618,8 +628,10 @@ details.card[open] > summary {
   white-space: nowrap;
 }
 
-.appbar__web:hover {
-  color: var(--gold-bright);
+@media (hover: hover) and (pointer: fine) {
+  .appbar__web:hover {
+    color: var(--gold-bright);
+  }
 }
 
 .view h1,
@@ -646,6 +658,7 @@ details.card[open] > summary {
 }
 
 .week__day {
+  transition: transform 120ms var(--ease-out);
   display: grid;
   justify-items: center;
   gap: 1px;
@@ -657,8 +670,10 @@ details.card[open] > summary {
   cursor: pointer;
 }
 
-.week__day:hover {
-  border-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .week__day:hover {
+    border-color: var(--ink);
+  }
 }
 
 .week__day.is-on {
@@ -966,6 +981,7 @@ details.card[open] > summary {
 }
 
 .client {
+  transition: border-color 140ms ease, transform 120ms var(--ease-out);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 2px 12px;
@@ -978,8 +994,10 @@ details.card[open] > summary {
   text-decoration: none;
 }
 
-.client:hover {
-  border-color: var(--gold);
+@media (hover: hover) and (pointer: fine) {
+  .client:hover {
+    border-color: var(--gold);
+  }
 }
 
 .client__name {

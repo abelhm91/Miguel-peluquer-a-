@@ -33,7 +33,10 @@
 
   --font-display: 'Jost', 'Futura', 'Century Gothic', ui-sans-serif, sans-serif;
   --font: 'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Curvas fuertes (Emil Kowalski): las de serie de CSS se quedan cortas. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* entrar/salir y respuesta */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* moverse en pantalla */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* hojas y cajones, como iOS */
 
   --gutter: clamp(16px, 4vw, 40px);
   --max: 1160px;
@@ -157,13 +160,15 @@ textarea {
   transition: background-color 160ms var(--ease-out), transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
 }
 
-.btn:hover {
-  --btn-bg: #000;
-  box-shadow: var(--shadow-1);
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    --btn-bg: #000;
+    box-shadow: var(--shadow-1);
+  }
 }
 
 .btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .btn[disabled],
@@ -180,9 +185,11 @@ textarea {
   --btn-fg: var(--night);
 }
 
-.btn--gold:hover {
-  --btn-bg: #e2c182;
-  box-shadow: 0 4px 18px rgb(212 176 106 / 0.28);
+@media (hover: hover) and (pointer: fine) {
+  .btn--gold:hover {
+    --btn-bg: #e2c182;
+    box-shadow: 0 4px 18px rgb(212 176 106 / 0.28);
+  }
 }
 
 .btn--line {
@@ -191,10 +198,12 @@ textarea {
   border-color: rgb(244 238 229 / 0.4);
 }
 
-.btn--line:hover {
-  --btn-bg: rgb(244 238 229 / 0.08);
-  border-color: var(--ivory);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .btn--line:hover {
+    --btn-bg: rgb(244 238 229 / 0.08);
+    border-color: var(--ivory);
+    box-shadow: none;
+  }
 }
 
 .btn--ghost {
@@ -203,9 +212,11 @@ textarea {
   border-color: var(--line-strong);
 }
 
-.btn--ghost:hover {
-  --btn-bg: var(--surface);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .btn--ghost:hover {
+    --btn-bg: var(--surface);
+    box-shadow: none;
+  }
 }
 
 .btn--small {
@@ -224,9 +235,11 @@ textarea {
   border-color: #e7b9b5;
 }
 
-.btn--danger:hover {
-  --btn-bg: var(--danger-soft);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .btn--danger:hover {
+    --btn-bg: var(--danger-soft);
+    box-shadow: none;
+  }
 }
 
 .icon-btn {
@@ -239,11 +252,13 @@ textarea {
   background: transparent;
   color: var(--ink);
   cursor: pointer;
-  transition: background-color 140ms var(--ease-out);
+  transition: background-color 140ms var(--ease-out), transform 120ms var(--ease-out);
 }
 
-.icon-btn:hover {
-  background: var(--surface);
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn:hover {
+    background: var(--surface);
+  }
 }
 
 .icon-btn[disabled] {
@@ -321,10 +336,12 @@ textarea {
   color: #7a7274;
 }
 
-.input:hover,
-.select:hover,
-.textarea:hover {
-  border-color: #a9a2a0;
+@media (hover: hover) and (pointer: fine) {
+  .input:hover,
+  .select:hover,
+  .textarea:hover {
+    border-color: #a9a2a0;
+  }
 }
 
 .input:focus,
@@ -401,4 +418,46 @@ textarea {
 /* objetivos táctiles de al menos 44 px también en escritorio */
 .btn--small {
   min-height: 44px;
+}
+
+/* =========================================================
+   Sensación de app en el móvil y respuesta al pulsar
+   (skills de Emil Kowalski: mobile-native y emil-design-eng)
+   ========================================================= */
+
+html {
+  -webkit-tap-highlight-color: transparent; /* sin destello gris al tocar: cada control tiene su :active */
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Controles: respuesta inmediata al tocar y sin seleccionar su texto al mantener pulsado. */
+button,
+.btn,
+[role='button'],
+.chip,
+.day,
+.slot,
+.pick,
+.fday,
+.seg button,
+.tabs a,
+.week__day,
+.client,
+.icon-btn {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Todo lo que se pulsa se hunde un poco (100–160 ms, ease-out). */
+.chip:active,
+.day:active:not([disabled]),
+.slot:active,
+.pick:active,
+.fday:active:not([disabled]),
+.seg button:active,
+.week__day:active,
+.client:active,
+.icon-btn:active {
+  transform: scale(0.97);
 }

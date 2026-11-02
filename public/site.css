@@ -101,8 +101,10 @@
   transition: color 140ms var(--ease-out);
 }
 
-.topnav a:hover {
-  color: var(--ivory);
+@media (hover: hover) and (pointer: fine) {
+  .topnav a:hover {
+    color: var(--ivory);
+  }
 }
 
 .topbar .btn {
@@ -238,11 +240,13 @@
   font-size: 0.9375rem;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+  transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out), border-color 140ms var(--ease-out), transform 120ms var(--ease-out);
 }
 
-.chip:hover {
-  border-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover {
+    border-color: var(--ink);
+  }
 }
 
 .chip[aria-current='true'] {
@@ -469,8 +473,10 @@
   font-weight: 500;
 }
 
-.contact-links a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .contact-links a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* ---------- pie ---------- */
@@ -576,7 +582,7 @@
 }
 
 .booking[open] {
-  animation: sheet-in 320ms var(--ease-out);
+  animation: sheet-in 320ms var(--ease-drawer);
 }
 
 @keyframes sheet-in {
@@ -651,6 +657,7 @@
 
 .booking__body {
   overflow-y: auto;
+  overscroll-behavior: contain; /* al llegar al final no arrastra la página de detrás */
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 48px;
@@ -823,11 +830,13 @@
   background: #fff;
   text-align: left;
   cursor: pointer;
-  transition: border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+  transition: border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out), transform 120ms var(--ease-out);
 }
 
-.pick:hover {
-  border-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .pick:hover {
+    border-color: var(--ink);
+  }
 }
 
 .pick[aria-pressed='true'] {
@@ -935,7 +944,7 @@
   border-radius: var(--radius);
   background: #fff;
   cursor: pointer;
-  transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out), color 140ms var(--ease-out);
+  transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out), color 140ms var(--ease-out), transform 120ms var(--ease-out);
 }
 
 .day__dow {
@@ -969,8 +978,10 @@
   white-space: nowrap;
 }
 
-.day:hover:not([disabled]) {
-  border-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .day:hover:not([disabled]) {
+    border-color: var(--ink);
+  }
 }
 
 .day[aria-pressed='true'] {
@@ -1020,11 +1031,13 @@
   background: #fff;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out), color 140ms var(--ease-out);
+  transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out), color 140ms var(--ease-out), transform 120ms var(--ease-out);
 }
 
-.slot:hover {
-  border-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .slot:hover {
+    border-color: var(--ink);
+  }
 }
 
 .slot[aria-pressed='true'] {
@@ -1105,7 +1118,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .done .ticket {
-    animation: ticket-in 640ms 80ms var(--ease-out) both;
+    animation: ticket-in 480ms 60ms var(--ease-out) both;
   }
 
   .done .ticket__head img {
@@ -1281,9 +1294,11 @@
   color: var(--gold-ink);
 }
 
-.chip--fallas:hover {
-  background: var(--gold-soft);
-  border-color: var(--gold-ink);
+@media (hover: hover) and (pointer: fine) {
+  .chip--fallas:hover {
+    background: var(--gold-soft);
+    border-color: var(--gold-ink);
+  }
 }
 
 .more-times {
@@ -1388,8 +1403,10 @@
   cursor: pointer;
 }
 
-.month-picker select:hover {
-  border-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .month-picker select:hover {
+    border-color: var(--ink);
+  }
 }
 
 .month-picker .icon {
