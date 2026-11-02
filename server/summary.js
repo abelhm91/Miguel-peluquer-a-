@@ -3,6 +3,7 @@
 import { getSettings } from './db.js';
 import { channels, notify } from './notify.js';
 import { addDays, nowInMadrid, toHHMM } from './time.js';
+import { reminderText, waLink } from '../public/reminder.js';
 
 const fmtDate = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 const num = (v) => {
@@ -51,6 +52,22 @@ export async function sendDailySummary({ db, env, now = nowInMadrid(), fetchImpl
   const date = addDays(now.date, 1);
   const rows = await db.all("SELECT * FROM bookings WHERE status = 'confirmed' AND date = ? ORDER BY start_min", date);
   if (!force && !rows.length) return { sent: false, reason: 'sin-citas', date };
-  const results = await notify(env, summaryText(date, rows, { siteUrl }), fetchImpl);
+  const buttons = reminderButtons(rows, settings, { today: now.date, siteUrl });
+  let text = summaryText(date, rows, { siteUrl });
+  if (buttons.length && env.TELEGRAM_BOT_TOKEN) text += '\n\nToca un botón para mandarle el recordatorio por WhatsApp (ya va escrito).';
+  const results = await notify(env, text, fetchImpl, { buttons });
   return { sent: true, date, count: rows.length, results: Object.fromEntries(results) };
+}
+
+/** Un botón de Telegram por cita con teléfono: abre WhatsApp con el recordatorio escrito. */
+export function reminderButtons(rows, settings, { today, siteUrl }) {
+  const town = String(settings.city || '').replace(/^\d+\s*/, '').split(',')[0].trim();
+  const address = [settings.address, town].filter(Boolean).join(', ');
+  return rows
+    .filter((r) => String(r.phone || '').replace(/\D/g, '').length >= 9)
+    .map((r) => {
+      const b = { name: r.name, date: r.date, start: toHHMM(r.start_min), code: r.code, token: r.token, party: (() => { try { return JSON.parse(r.party || '[]'); } catch { return []; } })() };
+      const first = String(r.name).trim().split(/\s+/)[0];
+      return { text: `📲 Recordar a ${first} (${b.start})`, url: waLink(r.phone, reminderText(b, { today, siteUrl, address })) };
+    });
 }

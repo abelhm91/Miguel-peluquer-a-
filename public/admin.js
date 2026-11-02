@@ -2,6 +2,7 @@ import {
   $, $$, esc, api, addDays, longDate, shortDate, DAY_NAMES, prettyTime, toMin, duration,
   phoneHref, whatsappHref, prettyPhone, euros, priceValue, weekday, dow, dayNum,
 } from './shared.js';
+import { reminderText, waLink } from './reminder.js';
 
 const ICON = (id) => `<svg class="icon" aria-hidden="true"><use href="#i-${id}"/></svg>`;
 const view = $('#view');
@@ -124,6 +125,13 @@ window.addEventListener('hashchange', () => {
    Agenda del día
    ========================================================= */
 
+/** WhatsApp con el recordatorio de la cita ya escrito (incluye su enlace para cambiarla). */
+function remindHref(b) {
+  const s = settings();
+  const town = String(s.city || '').replace(/^\d+\s*/, '').split(',')[0].trim();
+  return waLink(b.phone, reminderText(b, { today: today(), siteUrl: location.origin, address: [s.address, town].filter(Boolean).join(', ') }));
+}
+
 function apptHtml(b) {
   const cancelled = b.status !== 'confirmed';
   return `
@@ -146,6 +154,7 @@ function apptHtml(b) {
             ? `<div class="appt__links">
           <a href="${phoneHref(b.phone)}">${ICON('phone')}${esc(prettyPhone(b.phone))}</a>
           <a href="${whatsappHref(b.phone, `Hola ${b.name.split(' ')[0]}, soy Miguel de la Cruz. Te escribo por tu cita del ${shortDate(b.date)} a las ${prettyTime(b.start)}.`)}" target="_blank" rel="noopener">${ICON('chat')}WhatsApp</a>
+          ${!cancelled && b.date >= today() ? `<a href="${remindHref(b)}" target="_blank" rel="noopener">${ICON('chat')}Recordar cita</a>` : ''}
         </div>`
             : ''
         }
